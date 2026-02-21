@@ -1,0 +1,116 @@
+@font-face {
+    font-family: 'Geist Mono';
+    src: url('/fonts/GeistMono[wght].woff2') format('woff2');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Geist Pixel Line';
+    src: url('/fonts/GeistPixel-Line.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Geist Pixel Square';
+    src: url('/fonts/GeistPixel-Square.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    /* -- THEME: ASTRAL GLITCH -- */
+    --font-mono: "Geist Mono", monospace;
+    --font-pixel: "Geist Mono", monospace;
+    --font-pixel-square: "Geist Mono", monospace;
+    --font-pixel-line: "Geist Mono", monospace;
+
+    /* Backgrounds */
+    --bg-void: #05000a;
+    --bg-glass: rgba(20, 0, 40, 0.6);
+    --bg-panel-hover: rgba(40, 10, 80, 0.7);
+
+    /* Accents */
+    --color-cyan: #00f3ff;
+    /* Code & Structure */
+    --color-magenta: #ff00ff;
+    /* AI & Magic */
+    --color-accent: var(--color-cyan);
+    /* Legacy support */
+
+    /* Typography */
+    --text-bright: #ffffff;
+    --text-dim: rgba(140, 140, 255, 0.6);
+    --color-text: var(--text-bright);
+    /* Legacy support */
+
+    /* FX & Physics */
+    --glass-border: 0.0625rem solid rgba(255, 255, 255, 0.1);
+    --aberration-glow: -0.125rem 0 0.9375rem rgba(0, 243, 255, 0.4), 0.125rem 0 0.9375rem rgba(255, 0, 255, 0.4);
+    --void-gradient: radial-gradient(circle at center, #1a002e 0%, #05000a 100%);
+
+    /* Layout */
+    --sidebar-width: 22rem;
+
+    /* Legacy and Base Tokens */
+    --border-width: 0.0625rem;
+    --border-style: solid;
+    --radius: 0.25rem;
+}
+
+body {
+    margin: 0;
+    background: var(--bg-void);
+    color: var(--text-bright);
+    font-family: var(--font-pixel);
+    image-rendering: pixelated;
+    /* Crisp pixels everywhere */
+    overflow: hidden;
+    /* Prevent scroll */
+}
+
+/* Global Reset for Raw Feel */
+button {
+    font-family: inherit;
+    border-radius: var(--radius);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: var(--bg-glass);
+    color: var(--text-bright);
+    border: var(--glass-border);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+button:hover {
+    background: var(--bg-panel-hover);
+    box-shadow: var(--aberration-glow);
+}
+
+input {
+    font-family: var(--font-mono);
+    border-radius: var(--radius);
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--color-cyan);
+    border: 0.0625rem solid var(--color-cyan);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 0.375rem;
+    height: 0.375rem;
+    background: var(--bg-void);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bg-glass);
+    border: 0.0625rem solid var(--bg-void);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-cyan);
+}
