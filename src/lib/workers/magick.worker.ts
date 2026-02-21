@@ -19,33 +19,54 @@ export type WorkerResponse =
     | { type: 'AUDIT_DONE'; id: number; result: string }
     | { type: 'ERROR'; id: number; error: string };
 
-let execute: any = null;
+// Define the execution environment signature since wasm-imagemagick doesn't provide strict types
+type MagickExecuteCommand = {
+    inputFiles?: Array<{ name: string; content: Uint8Array }>;
+    commands: string[];
+};
+
+type MagickExecuteResult = {
+    exitCode: number;
+    stdout: string[];
+    stderr: string[];
+    outputFiles: Array<{ name: string; blob: Blob }>;
+};
+
+type MagickExecuteFunc = (config: MagickExecuteCommand) => Promise<MagickExecuteResult>;
+let execute: MagickExecuteFunc | null = null;
 
 // Dynamic import to ensure polyfill runs first
-async function loadMagick() {
+async function loadMagick(): Promise<MagickExecuteFunc> {
     if (!execute) {
         const module = await import('wasm-imagemagick');
-        execute = module.execute; // @ts-ignore
+        execute = module.execute as MagickExecuteFunc;
     }
     return execute;
 }
 
-self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
-    // @ts-ignore
-    const { type, id, command, image } = e.data;
+// Define a safe interface for Window/Worker scope
+interface WorkerScope {
+    postMessage(message: WorkerResponse, transfer?: Transferable[]): void;
+    onmessage: ((this: WorkerScope, ev: MessageEvent<WorkerMessage>) => any) | null;
+}
+
+const workerScope = self as unknown as WorkerScope;
+
+workerScope.onmessage = async (e: MessageEvent<WorkerMessage>) => {
+    const { type, id } = e.data;
 
     try {
         const exec = await loadMagick();
 
-        if (type === 'PROCESS') {
+        if (e.data.type === 'PROCESS') {
+            const { command, image } = e.data;
             // 1. Sanitize (Display Mode -> out.rgba)
             const safeCommand = sanitizeCommand(command, image.width, image.height, false);
 
             // 2. Execute WASM
-            // We pass the raw RGBA data directly
             const result = await exec({
                 inputFiles: [{ name: INPUT_FILE, content: image.data }],
-                commands: safeCommand,
+                commands: [safeCommand],
             });
 
             if (result.exitCode !== 0) {
@@ -53,7 +74,7 @@ self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
             }
 
             // 3. Read Output
-            const outputFile = result.outputFiles.find((f: any) => f.name === OUTPUT_FILE);
+            const outputFile = result.outputFiles.find((f: { name: string; blob: Blob }) => f.name === OUTPUT_FILE);
             if (!outputFile) {
                 throw new Error('No output file produced');
             }
@@ -67,20 +88,20 @@ self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
             const bitmap = await createImageBitmap(imageData);
 
             // 5. Transfer back
-            // @ts-ignore - Worker postMessage supports transferable array
-            (self as any).postMessage(
-                { type: 'DONE', id, bitmap, width: image.width, height: image.height },
-                [bitmap] // Transfer the bitmap
+            workerScope.postMessage(
+                { type: 'DONE', id, bitmap, width: image.width, height: image.height } satisfies WorkerResponse,
+                [bitmap]
             );
 
-        } else if (type === 'EXPORT') {
+        } else if (e.data.type === 'EXPORT') {
+            const { command, image } = e.data;
             // 1. Sanitize (Export Mode -> out.jpg)
             const safeCommand = sanitizeCommand(command, image.width, image.height, true);
 
             // 2. Execute WASM
             const result = await exec({
                 inputFiles: [{ name: INPUT_FILE, content: image.data }],
-                commands: safeCommand,
+                commands: [safeCommand],
             });
 
             if (result.exitCode !== 0) {
@@ -88,56 +109,48 @@ self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
             }
 
             // 3. Read Output (JPEG Blob)
-            const outputFile = result.outputFiles.find((f: any) => f.name === 'out.jpg');
+            const outputFile = result.outputFiles.find((f: { name: string; blob: Blob }) => f.name === 'out.jpg');
             if (!outputFile) {
                 throw new Error('No export file produced');
             }
 
             // 4. Return Blob
-            (self as any).postMessage({ type: 'EXPORT_DONE', id, blob: outputFile.blob });
-        } else if (type === 'AUDIT') {
-            const results = [];
+            workerScope.postMessage({ type: 'EXPORT_DONE', id, blob: outputFile.blob } satisfies WorkerResponse);
 
-            // 1. Version (Use identify instead of magick)
-            // Note: In some WASM builds, 'magick' isn't aliased. 'identify' or 'convert' usually is.
-            let res = await exec({ commands: ["identify -version"] });
+        } else if (e.data.type === 'AUDIT') {
+            const results: string[] = [];
+
+            let res = await exec({ commands: ["identify", "-version"] });
             results.push("=== VERSION ===\n" + res.stdout.join('\n'));
 
-            // 2. Delegate Check
-            res = await exec({ commands: ["convert -list format"] });
+            res = await exec({ commands: ["convert", "-list", "format"] });
             results.push("\n=== FORMATS ===\n" + res.stdout.join('\n'));
 
-            // 3. Morphology
-            res = await exec({ commands: ["convert -list morphology"] });
+            res = await exec({ commands: ["convert", "-list", "morphology"] });
             results.push("\n=== MORPHOLOGY ===\n" + res.stdout.join('\n'));
 
-            // 4. Color Space
-            res = await exec({ commands: ["convert -list colorspace"] });
+            res = await exec({ commands: ["convert", "-list", "colorspace"] });
             results.push("\n=== COLORSPACES ===\n" + res.stdout.join('\n'));
 
-            // 5. Compose (Blending Modes)
-            res = await exec({ commands: ["convert -list compose"] });
+            res = await exec({ commands: ["convert", "-list", "compose"] });
             results.push("\n=== COMPOSE (BLEND MODES) ===\n" + res.stdout.join('\n'));
 
-            // 6. Virtual Pixel (Edge Handling)
-            res = await exec({ commands: ["convert -list virtual-pixel"] });
+            res = await exec({ commands: ["convert", "-list", "virtual-pixel"] });
             results.push("\n=== VIRTUAL PIXEL ===\n" + res.stdout.join('\n'));
 
-            // 7. Distort (Geometric Warping)
-            res = await exec({ commands: ["convert -list distort"] });
+            res = await exec({ commands: ["convert", "-list", "distort"] });
             results.push("\n=== DISTORTION METHODS ===\n" + res.stdout.join('\n'));
 
-            // 8. Noise (Static Generation)
-            res = await exec({ commands: ["convert -list noise"] });
+            res = await exec({ commands: ["convert", "-list", "noise"] });
             results.push("\n=== NOISE TYPES ===\n" + res.stdout.join('\n'));
 
-            // 9. Filter (Pixel Interpolation)
-            res = await exec({ commands: ["convert -list filter"] });
+            res = await exec({ commands: ["convert", "-list", "filter"] });
             results.push("\n=== INTERPOLATION FILTERS ===\n" + res.stdout.join('\n'));
 
-            (self as any).postMessage({ type: 'AUDIT_DONE', id, result: results.join('\n') });
+            workerScope.postMessage({ type: 'AUDIT_DONE', id, result: results.join('\n') } satisfies WorkerResponse);
         }
-    } catch (err: any) {
-        (self as any).postMessage({ type: 'ERROR', id, error: err.message || String(err) });
+    } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        workerScope.postMessage({ type: 'ERROR', id, error: errorMsg } satisfies WorkerResponse);
     }
 };

@@ -37,26 +37,6 @@ export class FileService {
     }
 
     /**
-     * Draw the current raw image to a canvas (for "Show Original").
-     */
-    drawToCanvas(canvas: HTMLCanvasElement, rawData: RawImageData) {
-        if (!canvas || !rawData) return;
-
-        canvas.width = rawData.width;
-        canvas.height = rawData.height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            const clamped = new Uint8ClampedArray(rawData.data);
-            const imageData = new ImageData(
-                clamped,
-                rawData.width,
-                rawData.height
-            );
-            ctx.putImageData(imageData, 0, 0);
-        }
-    }
-
-    /**
      * Clear all file state.
      */
     clear() {

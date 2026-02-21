@@ -1,11 +1,10 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { gemini } from "$lib/ai/gemini";
-  import { PRESET_COMMANDS } from "$lib/ai/config";
   import { sanitizeCommand } from "$lib/workers/sanitizer";
   import { MagickBridge } from "$lib/workers/bridge";
   import { aiAgent } from "$lib/services/aiAgent";
   import { fileHandler } from "$lib/services/fileHandler";
+  import { drawToCanvas } from "$lib/utils/canvas";
   import {
     imageUrl,
     currentRawImage,
@@ -89,9 +88,7 @@
     addLog("[System] WASM Engine: READY ✦");
 
     bridge.create();
-
-    await gemini.init();
-    updateAiStatus();
+    await aiAgent.init();
   });
 
   onDestroy(() => {
@@ -102,23 +99,6 @@
       URL.revokeObjectURL($imageUrl);
     }
   });
-
-  // ─── AI Status ──────────────────────────────────────────────────────
-  function updateAiStatus() {
-    if (gemini.status === "ready") {
-      addLog("[System] AI Core: ONLINE (Gemini Nano)");
-      $isAiReady = true;
-    } else if (gemini.status === "downloading") {
-      addLog("[System] AI Core: DOWNLOADING MODEL...");
-      $isAiReady = true;
-    } else if (gemini.status === "cloud") {
-      addLog("[System] AI Core: CONNECTED TO CLOUD (Gemini Flash)");
-      $isAiReady = true;
-    } else {
-      addLog("[System] AI Core: OFFLINE");
-      $isAiReady = false;
-    }
-  }
 
   // ─── Stack-Based Processing ─────────────────────────────────────────
 
@@ -156,7 +136,7 @@
   /** Show the original unprocessed image */
   function showOriginal() {
     if (!$currentRawImage || !canvasRef) return;
-    fileHandler.drawToCanvas(canvasRef, $currentRawImage);
+    drawToCanvas(canvasRef, $currentRawImage);
     $status = "Ready";
   }
 
@@ -208,7 +188,7 @@
       // Render the PROCESSED image (downscaled) to the canvas, not original
       // This ensures canvas dimensions match $currentRawImage dimensions used by fitView
       if ($currentRawImage && canvasRef) {
-        fileHandler.drawToCanvas(canvasRef, $currentRawImage);
+        drawToCanvas(canvasRef, $currentRawImage);
       }
     } catch (err) {
       // Log handled in fileHandler

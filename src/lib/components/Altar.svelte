@@ -156,8 +156,8 @@
                 src={$imageUrl}
                 width={$currentRawImage?.width}
                 height={$currentRawImage?.height}
-                style:width="{$currentRawImage?.width}px !important"
-                style:height="{$currentRawImage?.height}px !important"
+                style:width="100% !important"
+                style:height="100% !important"
                 alt="Original"
                 class="altar-image"
             />
@@ -379,7 +379,7 @@
         font-family: var(--font-pixel);
         color: var(--text-dim);
         font-size: 1.5rem;
-        letter-spacing: 1.2rem;
+        letter-spacing: 1.25rem;
         text-transform: uppercase;
         opacity: 0.6;
     }

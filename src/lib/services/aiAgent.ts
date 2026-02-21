@@ -2,11 +2,32 @@ import { gemini } from '$lib/ai/gemini';
 import { validateCommand } from '$lib/ai/validator';
 import { PRESET_COMMANDS } from '$lib/ai/config';
 import { splitCommand } from '$lib/utils/commandSplitter';
-import { pushEntry, addLog, isProcessing } from '$lib/stores/appStore';
+import { pushEntry, addLog, isProcessing, isAiReady } from '$lib/stores/appStore';
 import { get } from 'svelte/store';
 
 export class AiAgent {
     constructor() { }
+
+    /**
+     * Initialize the underlying AI engine (Gemini) and report status.
+     */
+    async init(): Promise<void> {
+        await gemini.init();
+
+        if (gemini.status === "ready") {
+            addLog("[System] AI Core: ONLINE (Gemini Nano)");
+            isAiReady.set(true);
+        } else if (gemini.status === "downloading") {
+            addLog("[System] AI Core: DOWNLOADING MODEL...");
+            isAiReady.set(true);
+        } else if (gemini.status === "cloud") {
+            addLog("[System] AI Core: CONNECTED TO CLOUD (Gemini Flash)");
+            isAiReady.set(true);
+        } else {
+            addLog("[System] AI Core: OFFLINE");
+            isAiReady.set(false);
+        }
+    }
 
     /**
      * Process a user text prompt ("vibe") and generate a stack of effects.

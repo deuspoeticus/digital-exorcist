@@ -78,7 +78,7 @@ button {
     font-family: inherit;
     border-radius: var(--radius);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.0625rem;
     background: var(--bg-glass);
     color: var(--text-bright);
     border: var(--glass-border);

@@ -1,6 +1,6 @@
 # The Digital Exorcist
 
-Digital Exorcist is a web-based, privacy-first image manipulation toolkit. It blends the raw power of **ImageMagick WASM** with the interpretative capabilities of **Gemini AI**, creating a unique "Vibe" engine for image editing entirely within your browser. 
+The Digital Exorcist is a web-based, privacy-first image manipulation toolkit. It blends the raw power of **ImageMagick WASM** with the interpretative capabilities of **Gemini AI**, creating a unique "Vibe" engine for image editing entirely within your browser. 
 
 No images are uploaded to any server. All processing happens locally on your machine.
 

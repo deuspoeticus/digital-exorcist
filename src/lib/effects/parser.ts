@@ -639,6 +639,7 @@ export function reconstructCommand(effects: Effect[]): string {
             // Heuristic: if any arg is textual (not number), use space?
             const useSpace = e.args.some(a => typeof a.value === 'string' && isNaN(parseFloat(a.value as string)));
 
+            // Revert back to proper formatting
             if (useSpace || e.flag === 'fill' || e.flag === 'compose' || e.flag === 'morphology') {
                 return `-${e.flag} ${e.args.map(a => `${a.value}${a.unit || ''}`).join(' ')}`;
             }
