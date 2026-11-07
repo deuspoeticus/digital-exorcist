@@ -1,5 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
+    import { base } from "$app/paths";
     import { isAiReady, status, logs, addLog } from "$lib/stores/appStore";
     import { gemini } from "$lib/ai/gemini";
 
@@ -32,7 +33,7 @@
         </span>
         <div class="actions">
             <button on:click={checkAgain}>Check Again</button>
-            <a href="/setup" class="setup-link">Setup</a>
+            <a href="{base}/setup" class="setup-link">Setup</a>
         </div>
     </div>
 {/if}

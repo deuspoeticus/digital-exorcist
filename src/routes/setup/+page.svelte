@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { base } from "$app/paths";
     // Simple setup page rendering content from SETUP_AI.md
 </script>
 
@@ -54,7 +55,7 @@
             </ol>
         </div>
 
-        <a href="/" class="btn">I've Done This! Take Me Back</a>
+        <a href="{base}/" class="btn">I've Done This! Take Me Back</a>
     </div>
 </main>
 
