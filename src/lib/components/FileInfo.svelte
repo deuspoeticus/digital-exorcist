@@ -31,6 +31,13 @@
     // Estimate raw size (RGBA = 4 bytes per pixel)
     $: rawSize = rawImage ? rawImage.width * rawImage.height * 4 : 0;
 
+    // Neural Link is only "present" when on-device Gemini Nano was found.
+    // "cloud" / "offline" mean no local model (and no cloud on static hosting).
+    $: linkPresent =
+        $aiStatus === "ready" ||
+        $aiStatus === "downloading" ||
+        $aiStatus === "initializing";
+
     // WASM Engine Metrics
     $: ritualDepth = $effectStack.length;
 
@@ -141,16 +148,27 @@
             </div>
         </div>
 
-        <div class="section ai-section">
+        <div class="section ai-section" class:disabled={!linkPresent}>
             <div class="ai-header">
                 <span
                     class="indicator"
-                    class:online={$aiStatus === "ready" ||
-                        $aiStatus === "cloud"}
+                    class:online={$aiStatus === "ready"}
                 ></span>
                 <h3>NEURAL LINK</h3>
             </div>
 
+            {#if !linkPresent}
+            <div class="ai-grid">
+                <div class="ai-label">MODEL</div>
+                <div class="ai-value">NOT FOUND</div>
+
+                <div class="ai-label">STATUS</div>
+                <div class="ai-value">DISABLED</div>
+
+                <div class="ai-label">UPLINK</div>
+                <div class="ai-value">SEVERED</div>
+            </div>
+            {:else}
             <div class="ai-grid">
                 <div class="ai-label">MODEL</div>
                 <div class="ai-value">
@@ -199,6 +217,7 @@
                     </div>
                 </div>
             </div>
+            {/if}
         </div>
     </div>
 </div>
@@ -240,6 +259,11 @@
 
     .ai-section:last-child {
         margin-bottom: 0;
+    }
+
+    .ai-section.disabled {
+        opacity: 0.4;
+        filter: grayscale(1);
     }
 
     .ai-header {
