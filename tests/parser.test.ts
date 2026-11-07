@@ -84,6 +84,11 @@ describe('parseEffects', () => {
 });
 
 describe('reconstructCommand', () => {
+    it('drops display-only units like ° from the CLI string', () => {
+        const effects = parseEffects('-swirl 137');
+        expect(reconstructCommand(effects)).toBe('-swirl 137');
+    });
+
     it('returns empty string for empty effects', () => {
         expect(reconstructCommand([])).toBe('');
     });

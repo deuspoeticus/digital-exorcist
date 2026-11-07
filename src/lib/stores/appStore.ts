@@ -1,4 +1,4 @@
-import { writable, get } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import type { RawImageData } from '$lib/utils/image';
 import { parseEffects, reconstructCommand } from '$lib/effects/parser';
 
@@ -49,9 +49,17 @@ export type SystemStability = 'stable' | 'unstable';
 export const systemStability = writable<SystemStability>('stable');
 
 // ─── AI State ───────────────────────────────────────────────────────────
-export type AiStatus = 'initializing' | 'ready' | 'downloading' | 'cloud' | 'offline';
+export type AiStatus = 'initializing' | 'ready' | 'downloading' | 'cloud' | 'offline' | 'claude';
 export const aiStatus = writable<AiStatus>('initializing');
 export const isAiReady = writable(false);
+
+/** True when on-device Gemini Nano was found (or detection is still running),
+ *  or the visitor bound their own Anthropic key ("claude").
+ *  "cloud" / "offline" mean no usable AI — there is no cloud route on static hosting. */
+export const isNeuralLinkPresent = derived(
+    aiStatus,
+    (s) => s === 'ready' || s === 'downloading' || s === 'initializing' || s === 'claude'
+);
 
 // ─── Logs ───────────────────────────────────────────────────────────────
 export const logs = writable<string[]>([]);

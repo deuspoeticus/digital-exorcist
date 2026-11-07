@@ -563,6 +563,14 @@ export function parseEffects(command: string): Effect[] {
 /**
  * Reconstruct an ImageMagick flag string from active Effects.
  */
+// Units that are only for the slider label — ImageMagick rejects them (e.g. "-swirl 137°").
+const DISPLAY_ONLY_UNITS = new Set(['°']);
+
+function cliArg(a: { value: unknown; unit?: string }): string {
+    const unit = a.unit && !DISPLAY_ONLY_UNITS.has(a.unit) ? a.unit : '';
+    return `${a.value}${unit}`;
+}
+
 export function reconstructCommand(effects: Effect[]): string {
     return effects
         .map(e => {
@@ -629,7 +637,7 @@ export function reconstructCommand(effects: Effect[]): string {
 
             // Default reconstruction: -flag value1,value2...
             // Assemble arguments with units if present
-            const argsString = e.args.length > 0 ? ' ' + e.args.map(a => `${a.value}${a.unit || ''}`).join(',') : '';
+            const argsString = e.args.length > 0 ? ' ' + e.args.map(cliArg).join(',') : '';
 
             // Handle space-separated args for specific flags if needed
             // ImageMagick is generally flexible, but some like -fill might prefer space?
@@ -641,7 +649,7 @@ export function reconstructCommand(effects: Effect[]): string {
 
             // Revert back to proper formatting
             if (useSpace || e.flag === 'fill' || e.flag === 'compose' || e.flag === 'morphology') {
-                return `-${e.flag} ${e.args.map(a => `${a.value}${a.unit || ''}`).join(' ')}`;
+                return `-${e.flag} ${e.args.map(cliArg).join(' ')}`;
             }
 
             return `-${e.flag}${argsString}`;

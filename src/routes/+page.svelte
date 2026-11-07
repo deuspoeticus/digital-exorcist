@@ -18,6 +18,7 @@
     buildStackCommand,
     lastProcessedStack,
     effectStack,
+    isNeuralLinkPresent,
   } from "$lib/stores/appStore";
 
   // Components
@@ -161,6 +162,13 @@
 
     const vibe = e.detail;
     addLog(`[User] ${vibe}`);
+
+    // No Neural Link → typed prompts do nothing (no Dum-Dum random effect,
+    // no fallback command). Presets stay available from the Grimoire.
+    if (!$isNeuralLinkPresent) {
+      addLog("[System] Neural Link severed. The machine does not hear you.");
+      return;
+    }
 
     try {
       await aiAgent.processVibe(vibe);

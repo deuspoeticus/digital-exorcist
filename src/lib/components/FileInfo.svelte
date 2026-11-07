@@ -6,8 +6,11 @@
         isProcessing,
         aiStatus,
         effectStack,
+        isNeuralLinkPresent,
     } from "$lib/stores/appStore";
     import { gemini } from "$lib/ai/gemini";
+    import { aiAgent } from "$lib/services/aiAgent";
+    import { CLAUDE_LABEL } from "$lib/ai/claude";
     import { auditStore } from "$lib/stores/auditStore";
 
     export let hasImage = false;
@@ -31,12 +34,31 @@
     // Estimate raw size (RGBA = 4 bytes per pixel)
     $: rawSize = rawImage ? rawImage.width * rawImage.height * 4 : 0;
 
-    // Neural Link is only "present" when on-device Gemini Nano was found.
-    // "cloud" / "offline" mean no local model (and no cloud on static hosting).
-    $: linkPresent =
-        $aiStatus === "ready" ||
-        $aiStatus === "downloading" ||
-        $aiStatus === "initializing";
+    $: linkPresent = $isNeuralLinkPresent;
+    $: isClaude = $aiStatus === "claude";
+
+    // Bring-your-own Anthropic key
+    let keyInput = "";
+    let binding = false;
+    let keyError = "";
+
+    async function bindKey() {
+        if (binding || !keyInput.trim()) return;
+        binding = true;
+        keyError = "";
+        try {
+            await aiAgent.bindClaudeKey(keyInput);
+            keyInput = "";
+        } catch (err) {
+            keyError = err instanceof Error ? err.message : String(err);
+        } finally {
+            binding = false;
+        }
+    }
+
+    function severKey() {
+        aiAgent.severClaudeKey();
+    }
 
     // WASM Engine Metrics
     $: ritualDepth = $effectStack.length;
@@ -148,17 +170,17 @@
             </div>
         </div>
 
-        <div class="section ai-section" class:disabled={!linkPresent}>
+        <div class="section ai-section">
             <div class="ai-header">
                 <span
                     class="indicator"
-                    class:online={$aiStatus === "ready"}
+                    class:online={$aiStatus === "ready" || isClaude}
                 ></span>
                 <h3>NEURAL LINK</h3>
             </div>
 
             {#if !linkPresent}
-            <div class="ai-grid">
+            <div class="ai-grid disabled">
                 <div class="ai-label">MODEL</div>
                 <div class="ai-value">NOT FOUND</div>
 
@@ -168,11 +190,40 @@
                 <div class="ai-label">UPLINK</div>
                 <div class="ai-value">SEVERED</div>
             </div>
+
+            <form class="key-form" on:submit|preventDefault={bindKey}>
+                <label class="ai-label" for="anthropic-key">ANTHROPIC KEY</label>
+                <div class="key-row">
+                    <input
+                        id="anthropic-key"
+                        type="password"
+                        autocomplete="off"
+                        spellcheck="false"
+                        placeholder="sk-ant-..."
+                        bind:value={keyInput}
+                        disabled={binding}
+                    />
+                    <button
+                        type="submit"
+                        class="action-btn"
+                        disabled={binding || !keyInput.trim()}
+                    >
+                        {binding ? "..." : "BIND"}
+                    </button>
+                </div>
+                {#if keyError}
+                    <div class="key-error">{keyError}</div>
+                {/if}
+                <div class="key-note">
+                    Uses {CLAUDE_LABEL}, billed to your key. Stored only in
+                    this browser. Prompts go to Anthropic; images never leave.
+                </div>
+            </form>
             {:else}
             <div class="ai-grid">
                 <div class="ai-label">MODEL</div>
                 <div class="ai-value">
-                    {$aiStatus === "cloud" ? "GEMINI FLASH" : "GEMINI NANO"}
+                    {isClaude ? CLAUDE_LABEL : "GEMINI NANO"}
                 </div>
 
                 <div class="ai-label">STATUS</div>
@@ -181,12 +232,12 @@
                     class:blink={$aiStatus === "initializing" ||
                         $aiStatus === "downloading"}
                 >
-                    {$aiStatus.toUpperCase()}
+                    {isClaude ? "BOUND" : $aiStatus.toUpperCase()}
                 </div>
 
                 <div class="ai-label">UPLINK</div>
                 <div class="ai-value">
-                    {$aiStatus === "cloud" ? "CLOUD" : "LOCAL"}
+                    {isClaude ? "ANTHROPIC" : "LOCAL"}
                 </div>
 
                 <div class="separator-line"></div>
@@ -201,6 +252,7 @@
                     {$auditStore.outputTokens.toLocaleString()}
                 </div>
 
+                {#if !isClaude}
                 <div class="ai-label">CONTEXT</div>
                 <div class="usage-container">
                     <div class="bar-bg">
@@ -216,7 +268,15 @@
                         ></div>
                     </div>
                 </div>
+                {/if}
             </div>
+            {#if isClaude}
+                <div class="actions">
+                    <button class="action-btn clear-btn-styled" on:click={severKey}>
+                        SEVER UPLINK
+                    </button>
+                </div>
+            {/if}
             {/if}
         </div>
     </div>
@@ -261,9 +321,57 @@
         margin-bottom: 0;
     }
 
-    .ai-section.disabled {
+    .ai-grid.disabled {
         opacity: 0.4;
         filter: grayscale(1);
+    }
+
+    .key-form {
+        margin-top: 0.8rem;
+        padding-top: 0.6rem;
+        border-top: var(--glass-border);
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+    }
+
+    .key-row {
+        display: flex;
+        gap: 0.4rem;
+    }
+
+    .key-row input {
+        flex: 1;
+        min-width: 0;
+        background: rgba(0, 0, 0, 0.3);
+        border: var(--glass-border);
+        color: var(--text-bright);
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .key-row input:focus {
+        outline: none;
+        border-color: var(--color-cyan);
+    }
+
+    .key-row .action-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .key-error {
+        color: var(--color-magenta);
+    }
+
+    .key-note {
+        color: var(--text-dim);
+        opacity: 0.7;
+        font-size: 0.6rem;
+        line-height: 1.4;
     }
 
     .ai-header {
