@@ -1,5 +1,5 @@
 import { SYSTEM_PROMPT, SAFETY_SETTINGS, PRIMITIVES, READY_EFFECTS, SPELLBOOK } from './config';
-import { aiStatus, type AiStatus } from '$lib/stores/appStore';
+import { aiStatus, nanoState, nanoProgress, nanoError, type AiStatus } from '$lib/stores/appStore';
 import { auditStore } from '$lib/stores/auditStore';
 
 // Helper for Dum-Dum mode (fallback)
@@ -7,6 +7,19 @@ function getRandomEffect(): string {
     const keys = Object.keys(READY_EFFECTS);
     const randomKey = keys[Math.floor(Math.random() * keys.length)];
     return READY_EFFECTS[randomKey];
+}
+
+// Language hints for Chrome's Prompt API. Chrome warns without them, and
+// availability() should be asked with the same options create() will use.
+const LANG_OPTIONS = {
+    expectedInputs: [{ type: 'text', languages: ['en'] }],
+    expectedOutputs: [{ type: 'text', languages: ['en'] }],
+};
+
+/** The current Prompt API global (Chrome 148+ on desktop). */
+function getLM(): any {
+    // @ts-ignore
+    return typeof LanguageModel !== 'undefined' ? LanguageModel : undefined;
 }
 
 export class GeminiService {
@@ -33,6 +46,7 @@ export class GeminiService {
                 const caps = await window.ai.languageModel.capabilities();
                 console.log('[Gemini] Capabilities:', caps);
                 if (caps.available !== 'no') {
+                    nanoState.set('ready');
                     this.isAvailable = true;
                     this.status = caps.available === 'after-download' ? 'downloading' : 'ready';
 
@@ -50,38 +64,120 @@ export class GeminiService {
             }
         }
 
-        // 2. Try global LanguageModel (Correction for some contexts)
-        // @ts-ignore
-        if (typeof LanguageModel !== 'undefined') {
-            try {
-                // The user reported: await LanguageModel.availability(["en"]) -> "available"
-                // We'll try to check availability.
-                // @ts-ignore
-                const avail = await LanguageModel.availability();
-                console.log('[Gemini] LanguageModel availability:', avail);
-                if (avail === 'available' || avail === 'readily' || avail === 'after-download') {
-                    console.log('Found global LanguageModel API');
-                    this.isAvailable = true;
-                    this.status = avail === 'after-download' ? 'downloading' : 'ready';
+        // 2. Current Prompt API (global LanguageModel)
+        if (getLM()) {
+            const avail = await this.checkAvailability();
+            if (avail === 'ready') {
+                this.isAvailable = true;
+                this.status = 'ready';
 
-                    // Count initial system prompt tokens immediately
-                    const sysTokens = Math.ceil(SYSTEM_PROMPT.length / 4);
-                    auditStore.update(s => ({
-                        ...s,
-                        inputTokens: sysTokens
-                    }));
+                // Count initial system prompt tokens immediately
+                const sysTokens = Math.ceil(SYSTEM_PROMPT.length / 4);
+                auditStore.update(s => ({
+                    ...s,
+                    inputTokens: sysTokens
+                }));
 
-                    return true;
-                }
-            } catch (e) {
-                console.warn('Global LanguageModel found but failed:', e);
+                return true;
             }
+            // downloadable / downloading / unavailable: no usable local link yet.
+            this.status = 'cloud';
+            return false;
         }
 
         // 3. Fallback
+        if (!window.ai) nanoState.set('unsupported');
         console.warn('No local AI found (checked window.ai and LanguageModel)');
         this.status = 'cloud';
         return false;
+    }
+
+    /** Ask Chrome whether Nano can run here and publish the answer to nanoState. */
+    async checkAvailability(): Promise<'ready' | 'downloadable' | 'downloading' | 'unavailable' | 'unsupported'> {
+        const LM = getLM();
+        if (!LM) {
+            nanoState.set('unsupported');
+            return 'unsupported';
+        }
+        try {
+            const avail = await LM.availability(LANG_OPTIONS);
+            console.log('[Gemini] LanguageModel availability:', avail);
+            if (avail === 'available' || avail === 'readily') {
+                nanoState.set('ready');
+                return 'ready';
+            }
+            if (avail === 'downloading') {
+                // Already downloading (e.g. started in another tab); progress unknown here.
+                nanoState.set('downloading');
+                nanoProgress.set(null);
+                return 'downloading';
+            }
+            if (avail === 'downloadable' || avail === 'after-download') {
+                nanoState.set('downloadable');
+                return 'downloadable';
+            }
+        } catch (e) {
+            console.warn('[Gemini] availability() failed:', e);
+        }
+        nanoState.set('unavailable');
+        return 'unavailable';
+    }
+
+    /** Create a Prompt API session with the system prompt. Sampling params (the chaos)
+     *  may be gated on the open web, so if Chrome rejects them, retry without. */
+    private async createLMSession(onProgress?: (fraction: number) => void): Promise<any> {
+        const LM = getLM();
+        const options: Record<string, unknown> = {
+            ...LANG_OPTIONS,
+            initialPrompts: [{ role: 'system', content: SYSTEM_PROMPT }],
+        };
+        if (onProgress) {
+            options.monitor = (m: any) => {
+                m.addEventListener('downloadprogress', (e: any) => onProgress(e.loaded));
+            };
+        }
+        try {
+            return await LM.create({ ...options, temperature: SAFETY_SETTINGS.temperature, topK: 3 });
+        } catch (e) {
+            console.warn('[Gemini] create() with sampling params failed, retrying without:', e);
+            return await LM.create(options);
+        }
+    }
+
+    private recordQuota() {
+        const quota = (this.session as any)?.inputQuota;
+        auditStore.update(s => ({
+            ...s,
+            maxTokens: typeof quota === 'number' && isFinite(quota) ? quota : 4096,
+            modelFamily: 'Gemini Nano (LanguageModel)'
+        }));
+    }
+
+    /**
+     * Download (if needed) and bind Gemini Nano. Must be called from a user click:
+     * Chrome only starts the model download with user activation.
+     */
+    async summon(): Promise<void> {
+        if (!getLM()) throw new Error('This browser has no built-in AI.');
+        nanoError.set(null);
+        nanoState.set('downloading');
+        nanoProgress.set(0);
+
+        try {
+            this.session?.destroy();
+            this.session = null;
+            this.session = await this.createLMSession(f => nanoProgress.set(Math.max(0, Math.min(1, f))));
+        } catch (e) {
+            nanoError.set(e instanceof Error ? `${e.name}: ${e.message}` : String(e));
+            await this.checkAvailability();
+            throw e;
+        }
+
+        nanoProgress.set(1);
+        nanoState.set('ready');
+        this.isAvailable = true;
+        this.status = 'ready';
+        this.recordQuota();
     }
 
     async createSession() {
@@ -114,34 +210,9 @@ export class GeminiService {
 
                 this.status = 'ready';
             }
-            // @ts-ignore
-            else if (typeof LanguageModel !== 'undefined') {
-                try {
-                    // @ts-ignore
-                    const caps = await LanguageModel.capabilities();
-                    // @ts-ignore
-                    const max = caps.maxTokens || 4096;
-                    auditStore.update(s => ({
-                        ...s,
-                        maxTokens: max,
-                        modelFamily: 'Gemini Nano (LanguageModel)'
-                    }));
-                } catch (err) {
-                    console.warn('[Gemini] Failed to read LanguageModel capabilities:', err);
-                }
-
-                // @ts-ignore
-                this.session = await LanguageModel.create({
-                    // @ts-ignore
-                    initialPrompts: [{ role: 'system', content: SYSTEM_PROMPT }],
-                    // @ts-ignore
-                    temperature: SAFETY_SETTINGS.temperature,
-                    // @ts-ignore
-                    topK: 3,
-                    // @ts-ignore
-                    expectedOutputLanguage: 'en'
-                });
-
+            else if (getLM()) {
+                this.session = await this.createLMSession();
+                this.recordQuota();
                 this.status = 'ready';
             } else {
                 throw new Error('No AI provider available');

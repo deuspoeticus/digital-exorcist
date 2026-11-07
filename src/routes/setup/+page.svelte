@@ -1,127 +1,294 @@
 <script lang="ts">
+    import { onMount } from "svelte";
     import { base } from "$app/paths";
-    // Simple setup page rendering content from SETUP_AI.md
+    import { nanoState } from "$lib/stores/appStore";
+    import { gemini } from "$lib/ai/gemini";
+    import NanoSummoner from "$lib/components/NanoSummoner.svelte";
+
+    const MIN_CHROME = 148;
+
+    let chromeVersion: number | null = null;
+    let isMobile = false;
+    let hasApi = false;
+    let checking = false;
+
+    async function recheck() {
+        checking = true;
+        try {
+            await gemini.checkAvailability();
+        } finally {
+            checking = false;
+        }
+    }
+
+    onMount(() => {
+        const match = navigator.userAgent.match(/Chrome\/(\d+)/);
+        chromeVersion = match ? parseInt(match[1], 10) : null;
+        isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+        // @ts-ignore — Prompt API global
+        hasApi = typeof LanguageModel !== "undefined";
+        recheck();
+    });
+
+    type Verdict = "ok" | "bad" | "wait";
+
+    $: browserVerdict = (
+        chromeVersion === null || isMobile
+            ? "bad"
+            : chromeVersion >= MIN_CHROME
+              ? "ok"
+              : "bad"
+    ) as Verdict;
+
+    $: deviceVerdict = (
+        $nanoState === "ready" || $nanoState === "downloadable"
+            ? "ok"
+            : $nanoState === "downloading" || $nanoState === "checking"
+              ? "wait"
+              : "bad"
+    ) as Verdict;
+
+    $: modelVerdict = (
+        $nanoState === "ready"
+            ? "ok"
+            : $nanoState === "downloading" || $nanoState === "checking"
+              ? "wait"
+              : "bad"
+    ) as Verdict;
+
+    const MARK: Record<Verdict, string> = { ok: "✦", bad: "✕", wait: "…" };
 </script>
 
+<svelte:head>
+    <title>Neural Link Setup · The Digital Exorcist</title>
+</svelte:head>
+
 <main class="container">
-    <h1>🧠 Setup "window.ai"</h1>
+    <h1>NEURAL LINK SETUP</h1>
+    <p class="intro">
+        The Exorcist hears your vibes through <strong>Gemini Nano</strong>, the
+        AI model built into desktop Chrome. It runs entirely on your machine,
+        costs nothing, and your words never leave the browser.
+    </p>
 
-    <div class="content">
-        <p class="intro">
-            The Digital Exorcist requires <strong>Gemini Nano</strong> (built
-            into Chrome) to interpret your vibes locally. Currently, this is an
-            <em>experimental feature</em>.
-        </p>
+    <section class="panel">
+        <h2>Diagnostics</h2>
+        <ul class="checks">
+            <li class={browserVerdict}>
+                <span class="mark">{MARK[browserVerdict]}</span>
+                <span class="label">Browser</span>
+                <span class="detail">
+                    {#if chromeVersion === null}
+                        Not Chrome. Gemini Nano needs desktop Chrome {MIN_CHROME}+.
+                    {:else if isMobile}
+                        Mobile Chrome ({chromeVersion}) has no built-in AI. Use a desktop.
+                    {:else if chromeVersion < MIN_CHROME}
+                        Chrome {chromeVersion}. Update to {MIN_CHROME}+ at <code>chrome://settings/help</code>.
+                    {:else}
+                        Chrome {chromeVersion}
+                    {/if}
+                </span>
+            </li>
+            <li class={hasApi ? "ok" : "bad"}>
+                <span class="mark">{MARK[hasApi ? "ok" : "bad"]}</span>
+                <span class="label">Prompt API</span>
+                <span class="detail">
+                    {hasApi ? "Present" : "Missing in this browser"}
+                </span>
+            </li>
+            <li class={deviceVerdict}>
+                <span class="mark">{MARK[deviceVerdict]}</span>
+                <span class="label">Device</span>
+                <span class="detail">
+                    {#if $nanoState === "unavailable"}
+                        Chrome says this device can't run the model.
+                    {:else if $nanoState === "unsupported"}
+                        —
+                    {:else if deviceVerdict === "ok"}
+                        Qualifies
+                    {:else}
+                        Checking...
+                    {/if}
+                </span>
+            </li>
+            <li class={modelVerdict}>
+                <span class="mark">{MARK[modelVerdict]}</span>
+                <span class="label">Model</span>
+                <span class="detail">
+                    {#if $nanoState === "ready"}
+                        Installed
+                    {:else if $nanoState === "downloading"}
+                        Downloading
+                    {:else if $nanoState === "downloadable"}
+                        Not downloaded yet
+                    {:else}
+                        —
+                    {/if}
+                </span>
+            </li>
+        </ul>
+        <button class="ghost" on:click={recheck} disabled={checking}>
+            {checking ? "Checking..." : "Check again"}
+        </button>
+    </section>
 
-        <div class="step">
-            <h2>1. Use Chrome Canary or Dev</h2>
-            <p>
-                This feature is bleeding-edge. Standard Chrome might not have it
-                yet.
-            </p>
-        </div>
+    <section class="panel">
+        <h2>Summon</h2>
+        <NanoSummoner />
+    </section>
 
-        <div class="step">
-            <h2>2. Enable Flags</h2>
-            <ol>
-                <li>Go to <code>chrome://flags</code></li>
-                <li>
-                    Set <strong>Enables optimization guide on device</strong> to
-                    <code>Enabled BypassPerfRequirement</code>
-                </li>
-                <li>
-                    Set <strong>Prompt API for Gemini Nano</strong> to
-                    <code>Enabled</code>
-                </li>
-                <li><strong>Relaunch Chrome</strong></li>
-            </ol>
-        </div>
+    <section class="panel">
+        <h2>If it won't bind</h2>
+        <ul class="tips">
+            <li>
+                Open <code>chrome://on-device-internals</code> to see the model
+                status and why a device doesn't qualify.
+            </li>
+            <li>
+                The download needs plenty of free disk space (Chrome asks for
+                about 22 GB on the drive holding your profile) and an unmetered
+                connection.
+            </li>
+            <li>
+                Weak hardware is refused by default. You can force it with
+                <code>chrome://flags/#optimization-guide-on-device-model</code>
+                set to <em>Enabled BypassPerfRequirement</em>, then relaunch.
+                Expect it to be slow.
+            </li>
+            <li>
+                No luck? Bind your own Anthropic API key in the Neural Link
+                panel instead.
+            </li>
+        </ul>
+    </section>
 
-        <div class="step">
-            <h2>3. Download the Brain</h2>
-            <ol>
-                <li>Go to <code>chrome://components</code></li>
-                <li>
-                    Find <strong>Optimization Guide On Device Model</strong>
-                </li>
-                <li>
-                    Click <strong>Check for update</strong> to force the download.
-                </li>
-                <li>
-                    Wait until you see a version number (e.g., <code
-                        >2024.5.21...</code
-                    >).
-                </li>
-            </ol>
-        </div>
-
-        <a href="{base}/" class="btn">I've Done This! Take Me Back</a>
-    </div>
+    <a href="{base}/" class="btn">&larr; Return to the Altar</a>
 </main>
 
 <style>
-    :global(body) {
-        background-color: #111;
-        color: #eee;
-        margin: 0;
-    }
     .container {
-        padding: 2rem;
-        font-family: monospace;
-        max-width: 800px;
+        padding: 2rem 1rem;
+        font-family: var(--font-mono);
+        max-width: 48rem;
         margin: 0 auto;
-    }
-    h1 {
-        color: #0f0;
-        margin-bottom: 2rem;
-    }
-    h2 {
-        color: #fff;
-        border-bottom: 1px solid #333;
-        padding-bottom: 0.5rem;
-        margin-top: 2rem;
-    }
-    .content {
+        color: var(--text-bright);
         line-height: 1.6;
     }
+
+    h1 {
+        font-family: var(--font-pixel, var(--font-mono));
+        color: var(--color-cyan);
+        letter-spacing: 0.1em;
+        margin-bottom: 1rem;
+    }
+
+    h2 {
+        font-size: 0.85rem;
+        letter-spacing: 0.1em;
+        color: var(--color-cyan);
+        margin: 0 0 1rem;
+        text-transform: uppercase;
+    }
+
     .intro {
-        font-size: 1.2rem;
-        color: #ccc;
+        color: var(--text-dim);
+        margin-bottom: 2rem;
     }
+
+    .panel {
+        background: var(--bg-glass);
+        border: var(--glass-border);
+        backdrop-filter: blur(0.5rem);
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .checks {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 1rem;
+        display: grid;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .checks li {
+        display: grid;
+        grid-template-columns: 1.5rem 7rem 1fr;
+        align-items: baseline;
+    }
+
+    .mark {
+        font-weight: 900;
+    }
+
+    .checks li.ok .mark {
+        color: var(--color-cyan);
+    }
+
+    .checks li.bad .mark {
+        color: var(--color-magenta);
+    }
+
+    .checks li.wait .mark {
+        color: var(--text-dim);
+    }
+
+    .label {
+        color: var(--text-dim);
+    }
+
+    .tips {
+        padding-left: 1.25rem;
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        display: grid;
+        gap: 0.5rem;
+    }
+
     code {
-        background: #222;
-        padding: 0.2rem 0.4rem;
-        border-radius: 4px;
-        color: #f0f;
+        color: var(--color-magenta);
+        word-break: break-all;
     }
-    .step {
-        background: #1a1a1a;
-        padding: 1.5rem;
-        border-radius: 8px;
-        margin-bottom: 1.5rem;
-        border: 1px solid #333;
+
+    .ghost {
+        background: transparent;
+        border: var(--glass-border);
+        color: var(--text-dim);
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        padding: 0.25rem 0.75rem;
+        cursor: pointer;
     }
-    ol {
-        padding-left: 1.5rem;
+
+    .ghost:hover:not(:disabled) {
+        border-color: var(--color-cyan);
+        color: var(--color-cyan);
     }
-    li {
-        margin-bottom: 0.5rem;
-    }
+
     .btn {
         display: inline-block;
-        background: #0f0;
-        color: #000;
-        padding: 1rem 2rem;
+        margin-top: 1rem;
+        color: var(--color-cyan);
+        border: 0.0625rem solid var(--color-cyan);
+        padding: 0.6rem 1.25rem;
         text-decoration: none;
-        font-weight: bold;
-        border-radius: 4px;
-        margin-top: 2rem;
-        transition:
-            transform 0.2s,
-            box-shadow 0.2s;
+        font-weight: 700;
+        letter-spacing: 0.05em;
     }
+
     .btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
+        background: var(--color-cyan);
+        color: var(--bg-void);
+    }
+
+    @media (max-width: 30rem) {
+        .checks li {
+            grid-template-columns: 1.5rem 1fr;
+        }
+        .checks li .detail {
+            grid-column: 2;
+        }
     }
 </style>

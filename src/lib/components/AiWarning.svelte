@@ -1,38 +1,47 @@
 <script lang="ts">
-    import { createEventDispatcher } from "svelte";
     import { base } from "$app/paths";
-    import { isAiReady, status, logs, addLog } from "$lib/stores/appStore";
-    import { gemini } from "$lib/ai/gemini";
+    import { isAiReady, status, nanoState } from "$lib/stores/appStore";
+    import { aiAgent } from "$lib/services/aiAgent";
 
-    const dispatch = createEventDispatcher<{ retry: void }>();
+    let summoning = false;
+
+    // Direct click handler — Chrome needs the gesture to start the download.
+    async function summon() {
+        if (summoning) return;
+        summoning = true;
+        try {
+            await aiAgent.summonNano();
+        } catch {
+            // error is logged and shown in the Neural Link panel
+        } finally {
+            summoning = false;
+        }
+    }
 
     async function checkAgain() {
-        addLog("[System] Re-checking AI availability...");
-        await gemini.init();
-        if (gemini.status === "ready") {
-            addLog("[System] AI Core: ONLINE (Gemini Nano)");
-            isAiReady.set(true);
-        } else if (gemini.status === "cloud") {
-            addLog("[System] Still using Cloud Fallback.");
-        } else {
-            addLog(`[System] AI Core: ${gemini.status.toUpperCase()}`);
-        }
+        await aiAgent.init();
     }
 </script>
 
-{#if !$isAiReady && $status !== "Initializing..."}
+{#if !$isAiReady && $status !== "Initializing..." && $nanoState !== "checking"}
     <div class="ai-warning floating">
         <span>
-            {#if gemini.status === "cloud"}
-                ☁️ <strong>Using Cloud Fallback</strong>
-            {:else if gemini.status === "offline"}
-                🔴 <strong>AI Offline</strong>
+            {#if $nanoState === "downloadable"}
+                🜏 <strong>Gemini Nano can be summoned</strong>
+            {:else if $nanoState === "downloading"}
+                ⏳ <strong>Gemini Nano is downloading...</strong>
             {:else}
-                ⚠️ <strong>Gemini Nano Not Detected</strong>
+                🔴 <strong>Neural Link severed</strong>
             {/if}
         </span>
         <div class="actions">
-            <button on:click={checkAgain}>Check Again</button>
+            {#if $nanoState === "downloadable"}
+                <button on:click={summon} disabled={summoning}>
+                    {summoning ? "Summoning..." : "Summon"}
+                </button>
+            {:else}
+                <button on:click={checkAgain}>Check Again</button>
+            {/if}
             <a href="{base}/setup" class="setup-link">Setup</a>
         </div>
     </div>

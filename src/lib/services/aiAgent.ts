@@ -3,7 +3,7 @@ import * as claude from '$lib/ai/claude';
 import { validateCommand } from '$lib/ai/validator';
 import { PRESET_COMMANDS } from '$lib/ai/config';
 import { splitCommand } from '$lib/utils/commandSplitter';
-import { pushEntry, addLog, isProcessing, isAiReady, aiStatus } from '$lib/stores/appStore';
+import { pushEntry, addLog, isProcessing, isAiReady, aiStatus, nanoState } from '$lib/stores/appStore';
 import { auditStore } from '$lib/stores/auditStore';
 import { get } from 'svelte/store';
 
@@ -41,8 +41,29 @@ export class AiAgent {
             return;
         }
 
-        addLog("[System] AI Core: NEURAL LINK SEVERED");
+        if (get(nanoState) === 'downloadable') {
+            addLog("[System] AI Core: SEVERED — Gemini Nano can be summoned (Neural Link panel)");
+        } else {
+            addLog("[System] AI Core: NEURAL LINK SEVERED");
+        }
         isAiReady.set(false);
+    }
+
+    /**
+     * Download (if needed) and bind on-device Gemini Nano.
+     * Call directly from a click handler — Chrome needs the user gesture.
+     */
+    async summonNano(): Promise<void> {
+        addLog('[System] Summoning Gemini Nano... keep this tab open.');
+        try {
+            await gemini.summon();
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            addLog(`[Error] Summoning failed: ${msg}`);
+            throw err;
+        }
+        isAiReady.set(true);
+        addLog('[System] AI Core: ONLINE (Gemini Nano, fully local)');
     }
 
     get hasClaudeKey(): boolean {

@@ -53,6 +53,19 @@ export type AiStatus = 'initializing' | 'ready' | 'downloading' | 'cloud' | 'off
 export const aiStatus = writable<AiStatus>('initializing');
 export const isAiReady = writable(false);
 
+/** On-device Gemini Nano state, tracked separately from the active uplink (aiStatus).
+ *  - checking:     detection not finished
+ *  - unsupported:  browser has no LanguageModel API (not desktop Chrome 148+)
+ *  - unavailable:  API exists but Chrome says this device can't run the model
+ *  - downloadable: device qualifies; model needs a one-time download (needs a click)
+ *  - downloading:  download in progress (see nanoProgress)
+ *  - ready:        model on disk and usable */
+export type NanoState = 'checking' | 'unsupported' | 'unavailable' | 'downloadable' | 'downloading' | 'ready';
+export const nanoState = writable<NanoState>('checking');
+/** Download progress 0..1, or null when unknown (e.g. started in another tab). */
+export const nanoProgress = writable<number | null>(null);
+export const nanoError = writable<string | null>(null);
+
 /** True when on-device Gemini Nano was found (or detection is still running),
  *  or the visitor bound their own Anthropic key ("claude").
  *  "cloud" / "offline" mean no usable AI — there is no cloud route on static hosting. */

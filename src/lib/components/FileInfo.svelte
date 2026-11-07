@@ -7,10 +7,12 @@
         aiStatus,
         effectStack,
         isNeuralLinkPresent,
+        nanoState,
     } from "$lib/stores/appStore";
     import { gemini } from "$lib/ai/gemini";
     import { aiAgent } from "$lib/services/aiAgent";
     import { CLAUDE_LABEL } from "$lib/ai/claude";
+    import NanoSummoner from "./NanoSummoner.svelte";
     import { auditStore } from "$lib/stores/auditStore";
 
     export let hasImage = false;
@@ -191,6 +193,11 @@
                 <div class="ai-value">SEVERED</div>
             </div>
 
+            <div class="nano-slot">
+                <div class="ai-label">LOCAL SPIRIT</div>
+                <NanoSummoner compact />
+            </div>
+
             <form class="key-form" on:submit|preventDefault={bindKey}>
                 <label class="ai-label" for="anthropic-key">ANTHROPIC KEY</label>
                 <div class="key-row">
@@ -276,6 +283,12 @@
                         SEVER UPLINK
                     </button>
                 </div>
+                {#if $nanoState === "downloadable" || $nanoState === "downloading"}
+                    <div class="nano-slot">
+                        <div class="ai-label">GO LOCAL INSTEAD</div>
+                        <NanoSummoner compact />
+                    </div>
+                {/if}
             {/if}
             {/if}
         </div>
@@ -324,6 +337,17 @@
     .ai-grid.disabled {
         opacity: 0.4;
         filter: grayscale(1);
+    }
+
+    .nano-slot {
+        margin-top: 0.8rem;
+        padding-top: 0.6rem;
+        border-top: var(--glass-border);
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
     }
 
     .key-form {
