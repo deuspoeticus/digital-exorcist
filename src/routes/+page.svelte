@@ -23,13 +23,14 @@
 
   // Components
   import Altar from "$lib/components/Altar.svelte";
-  import AiWarning from "$lib/components/AiWarning.svelte";
+  import DesktopOnly from "$lib/components/DesktopOnly.svelte";
 
   // New Layout Components
   import DraggableWindow from "$lib/components/ui/DraggableWindow.svelte";
   import GrimoireContent from "$lib/components/GrimoireContent.svelte";
   import RitualContent from "$lib/components/RitualContent.svelte";
   import FileInfo from "$lib/components/FileInfo.svelte";
+  import NeuralLink from "$lib/components/NeuralLink.svelte";
   import Terminal from "$lib/components/Terminal.svelte";
   import ExportContent from "$lib/components/ExportContent.svelte";
 
@@ -40,6 +41,16 @@
   let windowWidth = 1200;
   let grimoireHeight = 0;
   let fileInfoHeight = 0;
+  let neuralHeight = 0;
+
+  // Window layout: two columns of stacked windows hugging the edges.
+  const EDGE = 16;
+  const GAP = 12;
+  const LEFT_W = 288;
+  const RIGHT_W = 320;
+  const DESKTOP_MIN = 900;
+  // Keep the image clear of the columns when fitting it.
+  const altarInsets = { left: EDGE + LEFT_W + EDGE, right: EDGE + RIGHT_W + EDGE };
 
   // ─── Worker Bridge ──────────────────────────────────────────────────
   const bridge = new MagickBridge({
@@ -126,7 +137,8 @@
       $currentRawImage.width,
       $currentRawImage.height,
     );
-    addLog(`[Worker] ${fullCommand}`);
+    void fullCommand; // full CLI is built by the sanitizer inside the worker
+    addLog(`[Worker] ${command}`);
 
     bridge.process(command + " -alpha opaque", $currentRawImage);
 
@@ -236,15 +248,16 @@
 <div class="desktop">
   <!-- Background / Altar -->
   <div class="altar-layer">
-    <Altar bind:canvasRef on:fileSelected={onFileSelected} />
+    <Altar bind:canvasRef insets={altarInsets} on:fileSelected={onFileSelected} />
   </div>
 
-  <!-- Left Window: File Info -->
+  <!-- Left column -->
   <DraggableWindow
-    title="FILE INFO"
+    numeral="I"
+    title="Vessel"
     bind:height={fileInfoHeight}
-    initialPosition={{ x: 30, y: 30 }}
-    className="window-file-info"
+    initialPosition={{ x: EDGE, y: EDGE }}
+    className="window-left"
   >
     <FileInfo
       hasImage={!!$currentRawImage}
@@ -256,33 +269,46 @@
   </DraggableWindow>
 
   <DraggableWindow
-    title="EXPORT"
-    initialPosition={{ x: 30, y: 30 + fileInfoHeight + 30 }}
-    className="window-export"
+    numeral="II"
+    title="Neural Link"
+    bind:height={neuralHeight}
+    initialPosition={{ x: EDGE, y: EDGE + fileInfoHeight + GAP }}
+    className="window-left"
+  >
+    <NeuralLink />
+  </DraggableWindow>
+
+  <DraggableWindow
+    numeral="III"
+    title="Export"
+    initialPosition={{ x: EDGE, y: EDGE + fileInfoHeight + GAP + neuralHeight + GAP }}
+    className="window-left"
   >
     <ExportContent on:export={onExport} />
   </DraggableWindow>
 
-  <!-- Right Windows: Grimoire & Ritual -->
+  <!-- Right column -->
   <DraggableWindow
-    title="GRIMOIRE"
+    numeral="IV"
+    title="Grimoire"
     bind:height={grimoireHeight}
-    initialPosition={{ x: windowWidth - 350, y: 30 }}
-    className="window-grimoire"
+    initialPosition={{ x: windowWidth - RIGHT_W - EDGE, y: EDGE }}
+    className="window-right"
   >
     <GrimoireContent
-      disabled={$isProcessing || !!!$currentRawImage}
+      disabled={$isProcessing || !$currentRawImage}
       on:pushPreset={onPushPreset}
     />
   </DraggableWindow>
 
   <DraggableWindow
-    title="RITUAL STACK"
-    initialPosition={{ x: windowWidth - 350, y: 30 + grimoireHeight + 30 }}
-    className="window-ritual"
+    numeral="V"
+    title="Ritual"
+    initialPosition={{ x: windowWidth - RIGHT_W - EDGE, y: EDGE + grimoireHeight + GAP }}
+    className="window-right"
   >
     <RitualContent
-      disabled={$isProcessing || !!!$currentRawImage}
+      disabled={$isProcessing || !$currentRawImage}
       on:export={onExport}
       on:audit={onAudit}
       on:stackChanged={onStackChanged}
@@ -291,7 +317,6 @@
 
   <div class="terminal-layer">
     <div class="terminal-wrapper">
-      <div class="noise-overlay"></div>
       <Terminal
         logs={$logs}
         isProcessing={$isProcessing}
@@ -300,25 +325,21 @@
     </div>
   </div>
 
-  <AiWarning />
+  <!-- Post-punk grain over everything, barely there -->
+  <div class="grain" aria-hidden="true"></div>
+
+  {#if windowWidth < DESKTOP_MIN}
+    <DesktopOnly />
+  {/if}
 </div>
 
 <style>
-  :global(body, html) {
-    height: 100%;
-    margin: 0;
-    overflow: hidden;
-    background-color: var(--bg-void);
-    color: var(--text-bright);
-    font-family: var(--font-pixel);
-  }
-
   .desktop {
     position: relative;
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    background: var(--bg-void);
+    background: var(--ink-0);
   }
 
   .altar-layer {
@@ -331,54 +352,45 @@
     overflow: hidden;
   }
 
-  /* Specific window sizing overrides can go here via globals if needed, 
-     but mostly handled by content */
-
-  :global(.window-grimoire),
-  :global(.window-ritual) {
-    width: 320px;
+  :global(.window-left) {
+    width: 18rem; /* LEFT_W */
   }
 
-  :global(.window-file-info),
-  :global(.window-export) {
-    width: 280px;
+  :global(.window-right) {
+    width: 20rem; /* RIGHT_W */
   }
 
+  /* Terminal sits in the free channel between the two columns. */
   .terminal-layer {
     position: absolute;
-    bottom: 2rem;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 60%;
-    max-width: 800px;
-    min-width: 400px;
+    bottom: 1.25rem;
+    left: calc(16px + 18rem + 16px);
+    right: calc(16px + 20rem + 16px);
+    display: flex;
+    justify-content: center;
     z-index: 60;
     pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    /* Allow expansion up to 50% of screen */
     height: 50vh;
+    align-items: flex-end;
   }
 
   .terminal-wrapper {
-    position: relative;
     pointer-events: auto;
     width: 100%;
-    height: auto;
-    min-height: 48px; /* Height of the input bar */
+    max-width: 46rem;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    overflow: visible; /* Let the ghost log float above */
   }
 
-  .noise-overlay {
-    position: absolute;
+  /* Xerox grain: post-punk texture at the threshold of perception. */
+  .grain {
+    position: fixed;
     inset: 0;
+    z-index: 9000;
     pointer-events: none;
-    opacity: 0.05;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-    z-index: 1;
+    opacity: 0.045;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 </style>

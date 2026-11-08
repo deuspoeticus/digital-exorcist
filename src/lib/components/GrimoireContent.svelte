@@ -19,20 +19,23 @@
 <div class="sidebar-content">
     <div class="scroll-area">
         <PresetRow
-            label="SIGILS"
+            numeral="i"
+            label="sigils"
             presets={PRIMITIVES}
             {disabled}
             on:select={onPresetSelect}
         />
         <PresetRow
-            label="CODEX"
+            numeral="ii"
+            label="codex"
             presets={READY_EFFECTS}
             {disabled}
             category="codex"
             on:select={onPresetSelect}
         />
         <PresetRow
-            label="SPELLBOOK"
+            numeral="iii"
+            label="spellbook"
             presets={SPELLBOOK}
             {disabled}
             category="spellbook"
@@ -43,33 +46,7 @@
 
 <style>
     .sidebar-content {
-        flex: 1;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
-        height: 100%;
-    }
-
-    .scroll-area {
-        flex: 1;
-        overflow-y: auto;
-        padding: 0.5rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    /* Custom Scrollbar */
-    .scroll-area::-webkit-scrollbar {
-        width: 0.25rem;
-    }
-
-    .scroll-area::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.02);
-    }
-
-    .scroll-area::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 0.125rem;
     }
 </style>

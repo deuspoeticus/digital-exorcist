@@ -88,441 +88,316 @@
     }
 
     const sourceBadge: Record<string, string> = {
-        preset: "SIGIL",
-        ai: "NEURAL",
-        manual: "CMD",
+        preset: "grimoire",
+        ai: "oracle",
+        manual: "writ",
     };
 </script>
 
 <div class="stack-container">
     {#if $effectStack.length > 0}
         <div class="stack-header">
-            <span class="stack-title">Effect Stack</span>
+            <span class="rubric-label">the stack</span>
             <span class="stack-count"
-                >{$effectStack.filter((e) => e.enabled)
-                    .length}/{$effectStack.length}</span
+                >{$effectStack.filter((e) => e.enabled).length} / {$effectStack.length}</span
             >
         </div>
 
-        <div class="stack-list">
+        <ol class="stack-list">
             {#each $effectStack as entry, idx (entry.id)}
-                <div class="stack-entry" class:disabled={!entry.enabled}>
-                    <!-- Entry Header -->
+                <li class="stack-entry" class:disabled={!entry.enabled}>
                     <div class="entry-header">
-                        <!-- Reorder -->
-                        <div class="reorder-btns">
+                        <span class="idx">{String(idx + 1).padStart(2, "0")}</span>
+
+                        <button
+                            class="toggle"
+                            class:on={entry.enabled}
+                            on:click={() => toggle(entry.id)}
+                            disabled={$isProcessing}
+                            title={entry.enabled ? "Disable" : "Enable"}
+                            aria-label={entry.enabled ? `Disable ${entry.label}` : `Enable ${entry.label}`}
+                            aria-pressed={entry.enabled}
+                        ><span class="seal" class:bone={entry.enabled}></span></button>
+
+                        <span class="entry-label" title={entry.command}>
+                            {entry.label}
+                            <span class="source-badge">{sourceBadge[entry.source] ?? entry.source}</span>
+                        </span>
+
+                        <div class="entry-tools">
                             <button
                                 class="icon-btn"
                                 disabled={idx === 0 || $isProcessing}
                                 on:click={() => move(entry.id, -1)}
-                                title="Move up">▲</button
-                            >
+                                title="Move up"
+                                aria-label="Move up"
+                            ><span class="tri up"></span></button>
                             <button
                                 class="icon-btn"
-                                disabled={idx === $effectStack.length - 1 ||
-                                    $isProcessing}
+                                disabled={idx === $effectStack.length - 1 || $isProcessing}
                                 on:click={() => move(entry.id, 1)}
-                                title="Move down">▼</button
-                            >
-                        </div>
-
-                        <!-- Toggle -->
-                        <button
-                            class="toggle-btn"
-                            class:on={entry.enabled}
-                            on:click={() => toggle(entry.id)}
-                            disabled={$isProcessing}
-                            >{entry.enabled ? "●" : "○"}</button
-                        >
-
-                        <!-- Label + Source -->
-                        <span class="entry-label" title={entry.command}>
-                            <span class="source-badge"
-                                >{sourceBadge[entry.source]}</span
-                            >
-                            {entry.label}
-                        </span>
-
-                        <!-- Expand (if has sliders) -->
-                        {#if entry.effects.length > 0}
+                                title="Move down"
+                                aria-label="Move down"
+                            ><span class="tri down"></span></button>
+                            {#if entry.effects.length > 0}
+                                <button
+                                    class="icon-btn"
+                                    class:active={expandedId === entry.id}
+                                    on:click={() => toggleExpand(entry.id)}
+                                    title="Parameters"
+                                    aria-label="Parameters"
+                                    aria-expanded={expandedId === entry.id}
+                                ><span class="bars"></span></button>
+                            {/if}
                             <button
-                                class="icon-btn expand-btn"
-                                on:click={() => toggleExpand(entry.id)}
-                                >{expandedId === entry.id ? "▴" : "▾"}</button
-                            >
-                        {/if}
-
-                        <!-- Delete -->
-                        <button
-                            class="icon-btn delete-btn"
-                            on:click={() => remove(entry.id)}
-                            disabled={$isProcessing}
-                            title="Remove">×</button
-                        >
+                                class="icon-btn delete-btn"
+                                on:click={() => remove(entry.id)}
+                                disabled={$isProcessing}
+                                title="Remove"
+                                aria-label={`Remove ${entry.label}`}
+                            >×</button>
+                        </div>
                     </div>
 
-                    <!-- Expanded: Parameters -->
                     {#if expandedId === entry.id && entry.effects.length > 0}
                         <div class="entry-sliders">
                             {#each entry.effects as effect, i}
                                 <div class="effect-group">
-                                    <!-- Only show effect name if it has multiple args or isn't obvious -->
                                     {#if effect.args.length > 1}
-                                        <div class="effect-name">
-                                            {effect.name}
-                                        </div>
+                                        <div class="effect-name">{effect.name}</div>
                                     {/if}
-
                                     {#each effect.args as arg, j}
                                         <ParameterInput
                                             {arg}
                                             disabled={$isProcessing}
-                                            on:change={(e) =>
-                                                onParamChange(
-                                                    entry.id,
-                                                    i,
-                                                    j,
-                                                    e.detail,
-                                                )}
+                                            on:change={(e) => onParamChange(entry.id, i, j, e.detail)}
                                         />
                                     {/each}
                                 </div>
                             {/each}
                         </div>
                     {/if}
-                </div>
+                </li>
             {/each}
-        </div>
-
-        <!-- Bottom Controls -->
-        <div class="stack-controls">
-            <button
-                class="stack-btn secondary"
-                on:click={undo}
-                disabled={$isProcessing || $effectStack.length === 0}
-                >Undo</button
-            >
-            <button
-                class="stack-btn secondary"
-                on:click={clear}
-                disabled={$isProcessing}>Clear</button
-            >
-        </div>
+        </ol>
 
         <div class="stack-footer">
             <button
-                class="rerun-btn"
+                class="btn-sm"
+                on:click={undo}
+                disabled={$isProcessing || $effectStack.length === 0}>Undo</button
+            >
+            <button class="btn-sm btn-rubric" on:click={clear} disabled={$isProcessing}
+                >Clear</button
+            >
+            <button
+                class="recast btn-emboss"
                 on:click={rerun}
                 disabled={$isProcessing || isClean}
             >
-                {#if $isProcessing}
-                    PROCESSING...
-                {:else}
-                    RECAST
-                {/if}
+                {$isProcessing ? "Working…" : "Recast"}
             </button>
         </div>
     {:else}
         <div class="stack-empty">
-            <span
-                >No effects applied — click a preset or type in the terminal</span
-            >
+            <p class="verse">The stack is empty.</p>
+            <p class="fine-print">Choose a rite from the Grimoire, or speak to the machine below.</p>
         </div>
     {/if}
 </div>
 
 <style>
-    .stack-container {
-        background: var(--bg-void);
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        max-height: 100%;
-        overflow: hidden;
-    }
-
     .stack-header {
         display: flex;
+        align-items: baseline;
         justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 0.75rem;
-        background: var(--bg-glass);
-        border-bottom: var(--glass-border);
+        padding: 0.875rem 1rem 0.5rem;
     }
 
-    .stack-title {
-        font-size: 0.75rem;
-        color: var(--text-bright);
-        text-transform: uppercase;
-        letter-spacing: 0.0625rem;
+    .stack-header .rubric-label {
+        font-size: 0.9375rem;
+        color: var(--bone-2);
     }
 
     .stack-count {
-        font-size: 0.7rem;
-        color: var(--text-dim);
+        font-family: var(--font-pixel);
+        font-size: var(--text-xs);
+        color: var(--bone-3);
     }
 
     .stack-list {
-        flex: 1;
-        overflow-y: auto;
-        min-height: 0;
+        list-style: none;
+        margin: 0;
+        padding: 0;
     }
 
     .stack-entry {
-        border-bottom: 0.0625rem solid #ffffff;
-        transition: all 0.2s ease;
-        background: transparent;
+        border-top: var(--hairline);
     }
 
-    .stack-entry.disabled {
-        opacity: 0.4;
-        background: rgba(0, 0, 0, 0.2);
+    .stack-entry:last-child {
+        border-bottom: var(--hairline);
     }
 
     .entry-header {
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.5rem 0.625rem;
-        border-left: 0.125rem solid transparent;
+        height: 2.25rem;
+        padding: 0 0.5rem 0 1rem;
     }
 
-    .entry-header:hover {
-        background: var(--bg-panel-hover);
-        border-left-color: var(--color-cyan);
+    .idx {
+        font-family: var(--font-pixel);
+        font-size: var(--text-xs);
+        color: var(--bone-4);
+        width: 1.25rem;
     }
 
-    .reorder-btns {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-    }
-
-    .icon-btn {
-        background: none;
+    .toggle {
+        display: grid;
+        place-items: center;
+        width: 1.25rem;
+        height: 1.25rem;
+        padding: 0;
         border: none;
-        color: var(--text-dim);
-        cursor: pointer;
-        font-size: 0.6rem;
-        padding: 0 0.25rem;
-        line-height: 1;
-        transition: color 0.2s;
-    }
-
-    .icon-btn:hover:not(:disabled) {
-        color: var(--color-cyan);
-    }
-
-    .icon-btn:disabled {
-        opacity: 0.2;
-        cursor: not-allowed;
-    }
-
-    .toggle-btn {
         background: none;
-        border: none;
-        cursor: pointer;
-        padding: 0 0.25rem;
-        color: var(--text-dim);
-        font-family: var(--font-mono);
-        font-size: 1rem;
-        line-height: 1;
     }
 
-    .toggle-btn.on {
-        color: var(--color-cyan);
-        text-shadow: 0 0 0.5rem var(--color-cyan);
-    }
-
-    .toggle-btn:disabled {
-        cursor: not-allowed;
+    .toggle:hover:not(:disabled) {
+        background: none;
     }
 
     .entry-label {
         flex: 1;
-        font-size: 0.75rem;
-        color: var(--text-bright);
+        min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        font-family: var(--font-mono);
-        letter-spacing: 0.03125rem;
+        font-size: var(--text-md);
+        color: var(--bone);
+    }
+
+    .disabled .entry-label {
+        color: var(--bone-4);
+        text-decoration: line-through;
+        text-decoration-color: var(--bone-4);
     }
 
     .source-badge {
-        font-size: 0.6rem;
-        margin-right: 0.5rem;
-        opacity: 0.6;
-        color: var(--color-magenta);
-        font-weight: 700;
+        margin-left: 0.375rem;
+        font-family: var(--font-display);
+        font-style: italic;
+        font-size: 0.8125rem;
+        color: var(--bone-4);
     }
 
-    .expand-btn {
-        font-size: 0.8rem;
-        color: var(--text-dim);
+    .entry-tools {
+        display: flex;
+        align-items: center;
+        gap: 0.125rem;
+        opacity: 0.55;
+        transition: opacity var(--dur) var(--ease);
     }
 
-    .delete-btn {
-        font-size: 1.1rem;
-        color: rgba(255, 0, 0, 0.3);
-        margin-left: 0.25rem;
+    .stack-entry:hover .entry-tools,
+    .entry-tools:focus-within {
+        opacity: 1;
+    }
+
+    .icon-btn {
+        display: grid;
+        place-items: center;
+        width: 1.375rem;
+        height: 1.375rem;
+        padding: 0;
+        border: none;
+        font-size: var(--text-md);
+        color: var(--bone-3);
+    }
+
+    .icon-btn.active {
+        background: var(--bone-6);
     }
 
     .delete-btn:hover:not(:disabled) {
-        color: #ff3333;
-        text-shadow: 0 0 0.625rem rgba(255, 0, 0, 0.5);
+        color: var(--rubric-hi);
+        background: none;
     }
 
-    /* Sliders */
+    .tri {
+        width: 0;
+        height: 0;
+        border-left: 0.25rem solid transparent;
+        border-right: 0.25rem solid transparent;
+    }
+
+    .tri.up {
+        border-bottom: 0.3125rem solid var(--bone-3);
+    }
+
+    .tri.down {
+        border-top: 0.3125rem solid var(--bone-3);
+    }
+
+    /* Three hairlines: parameters */
+    .bars {
+        width: 0.625rem;
+        height: 0.4375rem;
+        border-top: 1px solid var(--bone-3);
+        border-bottom: 1px solid var(--bone-3);
+        position: relative;
+    }
+
+    .bars::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        border-top: 1px solid var(--bone-3);
+        transform: translateY(-50%);
+    }
+
     .entry-sliders {
-        padding: 0.625rem 0.9375rem;
-        background: rgba(0, 0, 0, 0.3);
-        border-top: var(--glass-border);
-        border-bottom: var(--glass-border);
-        box-shadow: inset 0 0 0.625rem rgba(0, 243, 255, 0.05);
-    }
-
-    .effect-group {
-        margin-bottom: 0.75rem;
-        border-bottom: 1px solid #ffffff;
-        padding-bottom: 0.75rem;
-    }
-
-    .effect-group:last-child {
-        margin-bottom: 0;
-        border-bottom: none;
-        padding-bottom: 0;
+        padding: 0.25rem 1rem 0.875rem 3.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
     }
 
     .effect-name {
-        font-size: 0.7rem;
-        color: var(--color-magenta);
-        margin-bottom: 0.5rem;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 0.05rem;
-    }
-
-    /* Bottom Controls */
-    .stack-controls {
-        display: flex;
-        justify-content: stretch;
-        padding: 0;
-        border-top: var(--glass-border);
-    }
-
-    .stack-btn {
-        flex: 1;
-        background: transparent;
-        border: none;
-        border-right: var(--glass-border);
-        color: var(--text-dim);
-        font-size: 0.7rem;
-        font-family: var(--font-mono);
-        padding: 0.625rem;
-        cursor: pointer;
-        text-transform: uppercase;
-        border-radius: 0;
-        transition: all 0.2s ease;
-    }
-
-    .stack-btn:last-child {
-        border-right: none;
-    }
-
-    .stack-btn:hover:not(:disabled) {
-        background: var(--bg-panel-hover);
-        color: var(--color-cyan);
-        box-shadow: var(--aberration-glow);
-    }
-
-    .stack-btn:disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
-    }
-
-    .stack-empty {
-        padding: 1.875rem 1.25rem;
-        text-align: center;
-        font-size: 0.75rem;
-        color: var(--text-dim);
-        text-transform: uppercase;
-        letter-spacing: 0.125rem;
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(0, 0, 0, 0.4),
-            rgba(0, 0, 0, 0.4) 0.3125rem,
-            rgba(0, 243, 255, 0.02) 0.3125rem,
-            rgba(0, 243, 255, 0.02) 0.625rem
-        );
-    }
-
-    .stack-btn.secondary {
-        font-size: 0.65rem;
-        opacity: 0.7;
+        font-family: var(--font-display);
+        font-variant: small-caps;
+        text-transform: lowercase;
+        letter-spacing: 0.1em;
+        font-size: 0.8125rem;
+        color: var(--bone-3);
+        margin-bottom: 0.25rem;
     }
 
     .stack-footer {
-        padding: 1rem;
-        margin-top: auto;
-        border-top: var(--glass-border);
-        background: rgba(0, 0, 0, 0.2);
+        display: flex;
+        gap: 0.375rem;
+        padding: 0.875rem 1rem;
     }
 
-    .rerun-btn {
-        width: 100%;
-        padding: 1rem;
-        background: var(--bg-glass);
-        border: 1px solid var(--color-magenta);
-        color: var(--color-magenta);
-        font-family: var(--font-pixel);
-        font-size: 0.9rem;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 0.1rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        box-shadow: 0 0 10px rgba(255, 0, 255, 0.1);
-        position: relative;
-        overflow: hidden;
+    .recast {
+        flex: 1;
+        padding: 0.5rem;
+        font-size: var(--text-sm);
     }
 
-    .rerun-btn:hover:not(:disabled) {
-        background: var(--color-magenta);
-        color: var(--bg-void);
-        box-shadow: 0 0 20px rgba(255, 0, 255, 0.4);
+    .stack-empty {
+        padding: 1.5rem 1rem 1.25rem;
+        text-align: center;
     }
 
-    .rerun-btn:active:not(:disabled) {
-        transform: scale(0.98);
-    }
-
-    .rerun-btn:disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
-        border-color: var(--text-dim);
-        color: var(--text-dim);
-        box-shadow: none;
-    }
-
-    /* Glitch line on hover */
-    .rerun-btn:hover:not(:disabled)::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 2px;
-        background: #fff;
-        animation: rerun-scanline 1s linear infinite;
-    }
-
-    @keyframes rerun-scanline {
-        0% {
-            transform: translateY(-10px);
-        }
-        100% {
-            transform: translateY(60px);
-        }
+    .verse {
+        margin: 0 0 0.375rem;
+        font-family: var(--font-display);
+        font-style: italic;
+        font-size: 1.0625rem;
+        color: var(--bone-2);
     }
 </style>

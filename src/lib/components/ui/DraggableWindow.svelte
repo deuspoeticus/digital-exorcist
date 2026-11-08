@@ -1,54 +1,67 @@
 <script lang="ts">
-    import { onMount, createEventDispatcher } from "svelte";
+    import { createEventDispatcher } from "svelte";
     import { getNextZIndex } from "$lib/stores/appStore";
     import GlassPanel from "./GlassPanel.svelte";
     import { slide } from "svelte/transition";
 
     export let title = "WINDOW";
+    /** Roman numeral shown before the title, e.g. "I". */
+    export let numeral = "";
     export let initialPosition = { x: 20, y: 20 };
     export let className = "";
     export let isMinimized = false;
-    export let height = 0; // Expose height for relative positioning
-    export let zIndex = 50; // Initial z-index
+    export let height = 0; // Exposed for stacking windows in a column
+    export let zIndex = 50;
+
+    const EDGE = 12; // keep this much of the viewport free around windows
+    const HEADER = 32;
 
     let x = initialPosition.x;
     let y = initialPosition.y;
+    let width = 0;
     let isDragging = false;
     let hasMovedManually = false;
     let dragOffsetX = 0;
     let dragOffsetY = 0;
-    let windowElement: HTMLElement;
+    let vw = 1280;
+    let vh = 800;
 
-    // Reactively update coordinates if initialPosition changes,
-    // but only if the user hasn't moved it themselves yet.
+    // Follow the layout until the user drags the window themselves.
     $: if (!hasMovedManually && initialPosition) {
         x = initialPosition.x;
         y = initialPosition.y;
     }
 
-    function onMouseDown(e: MouseEvent) {
+    // Never leave the viewport (also re-applied when the browser is resized).
+    $: clampedX = Math.min(Math.max(EDGE, x), Math.max(EDGE, vw - width - EDGE));
+    $: clampedY = Math.min(Math.max(EDGE, y), Math.max(EDGE, vh - HEADER - EDGE));
+    // Content scrolls inside the window instead of running off-screen.
+    $: maxContent = Math.max(80, vh - clampedY - HEADER - EDGE);
+
+    function onPointerDown(e: PointerEvent) {
         zIndex = getNextZIndex();
         dispatch("focus");
 
         const target = e.target as HTMLElement;
-        const isHeader = target.closest(".window-header");
-        const isControl = target.closest(".window-controls");
-
-        if (!isHeader || isControl) return;
+        if (!target.closest(".window-header") || target.closest(".window-controls")) return;
 
         isDragging = true;
         hasMovedManually = true;
-        dragOffsetX = e.clientX - x;
-        dragOffsetY = e.clientY - y;
+        dragOffsetX = e.clientX - clampedX;
+        dragOffsetY = e.clientY - clampedY;
     }
 
-    function onMouseMove(e: MouseEvent) {
+    function onPointerMove(e: PointerEvent) {
         if (!isDragging) return;
         x = e.clientX - dragOffsetX;
         y = e.clientY - dragOffsetY;
     }
 
-    function onMouseUp() {
+    function onPointerUp() {
+        if (isDragging) {
+            x = clampedX;
+            y = clampedY;
+        }
         isDragging = false;
     }
 
@@ -59,32 +72,45 @@
     const dispatch = createEventDispatcher();
 </script>
 
-<svelte:window on:mousemove={onMouseMove} on:mouseup={onMouseUp} />
+<svelte:window
+    bind:innerWidth={vw}
+    bind:innerHeight={vh}
+    on:pointermove={onPointerMove}
+    on:pointerup={onPointerUp}
+/>
 
 <div
-    class="draggable-window-wrapper"
+    class="window"
+    class:dragging={isDragging}
     role="presentation"
-    style="left: {x}px; top: {y}px; z-index: {zIndex};"
-    bind:this={windowElement}
+    style="left: {clampedX}px; top: {clampedY}px; z-index: {zIndex};"
+    bind:clientWidth={width}
     bind:clientHeight={height}
-    on:mousedown={onMouseDown}
+    on:pointerdown={onPointerDown}
 >
     <GlassPanel className="window-panel {className}">
         <div class="window-header">
+            {#if numeral}<span class="numeral">{numeral}</span>{/if}
             <span class="window-title">{title}</span>
             <div class="window-controls">
                 <button
                     class="control-btn"
                     on:click={toggleMinimize}
-                    title={isMinimized ? "Expand" : "Minimize"}
+                    title={isMinimized ? "Expand" : "Collapse"}
+                    aria-label={isMinimized ? `Expand ${title}` : `Collapse ${title}`}
+                    aria-expanded={!isMinimized}
                 >
-                    {isMinimized ? "□" : "−"}
+                    <span class="glyph" class:closed={isMinimized}></span>
                 </button>
             </div>
         </div>
 
         {#if !isMinimized}
-            <div class="window-content" transition:slide={{ duration: 200 }}>
+            <div
+                class="window-content"
+                style="max-height: {maxContent}px;"
+                transition:slide={{ duration: 180 }}
+            >
                 <slot />
             </div>
         {/if}
@@ -92,30 +118,14 @@
 </div>
 
 <style>
-    .draggable-window-wrapper {
+    .window {
         position: absolute;
-        z-index: 50;
         user-select: none;
-        transition: z-index 0.1s;
-        animation: float 6s ease-in-out infinite;
     }
 
-    .draggable-window-wrapper:active,
-    .draggable-window-wrapper:hover {
-        animation-play-state: paused;
+    .window.dragging {
+        cursor: grabbing;
     }
-
-    @keyframes float {
-        0%,
-        100% {
-            transform: translateY(0);
-        }
-        50% {
-            transform: translateY(-0.25rem);
-        }
-    }
-
-    /* The wrapper doesn't need dragging cursors anymore, handled in header */
 
     :global(.window-panel) {
         display: flex;
@@ -125,63 +135,66 @@
 
     .window-header {
         height: 2rem;
-        background: linear-gradient(
-            90deg,
-            color-mix(in srgb, var(--color-magenta), transparent 70%) 0%,
-            color-mix(in srgb, var(--color-cyan), transparent 70%) 100%
-        );
-        border-bottom: var(--glass-border);
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 0 0.75rem;
+        gap: 0.625rem;
+        padding: 0 0.5rem 0 0.75rem;
+        border-bottom: var(--hairline);
         cursor: grab;
+        touch-action: none;
     }
 
-    .window-header:active {
-        cursor: grabbing;
+    .numeral {
+        font-family: var(--font-pixel);
+        font-size: var(--text-xs);
+        color: var(--rubric-hi);
+        min-width: 1.25rem;
+        letter-spacing: 0.05em;
     }
 
     .window-title {
-        font-family: var(--font-pixel, monospace);
-        font-size: 0.75rem;
-        letter-spacing: 0.0625rem;
-        color: var(--text-bright);
-        text-shadow: 0 0 0.3125rem rgba(0, 0, 0, 0.5);
-        text-transform: uppercase;
+        flex: 1;
+        font-family: var(--font-display);
+        font-variant: small-caps;
+        text-transform: lowercase;
+        font-size: 1rem;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        color: var(--bone);
         pointer-events: none;
-    }
-
-    .window-controls {
-        display: flex;
-        gap: 0.375rem;
+        white-space: nowrap;
     }
 
     .control-btn {
-        background: transparent;
-        border: 0.0625rem solid rgba(255, 255, 255, 0.1);
-        color: var(--text-dim);
         width: 1.25rem;
         height: 1.25rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        font-size: 0.875rem;
-        line-height: 1;
-        transition: all 0.2s;
-        font-family: monospace;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border: none;
+        background: transparent;
     }
 
-    .control-btn:hover {
-        background: var(--bg-panel-hover);
-        color: var(--color-cyan);
-        border-color: var(--color-cyan);
-        box-shadow: var(--aberration-glow);
+    .control-btn:hover .glyph {
+        border-color: var(--bone);
+    }
+
+    /* Open: a horizontal stroke. Closed: a hollow square. */
+    .glyph {
+        display: block;
+        width: 0.5rem;
+        height: 0;
+        border-top: 1px solid var(--bone-3);
+        transition: all var(--dur) var(--ease);
+    }
+
+    .glyph.closed {
+        height: 0.5rem;
+        border: 1px solid var(--bone-3);
     }
 
     .window-content {
-        flex: 1;
-        overflow: auto;
+        overflow-y: auto;
+        overscroll-behavior: contain;
     }
 </style>

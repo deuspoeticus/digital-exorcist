@@ -64,7 +64,7 @@
 </svelte:head>
 
 <main class="container">
-    <h1>NEURAL LINK SETUP</h1>
+    <h1>Neural Link Setup</h1>
     <p class="intro">
         The Exorcist hears your vibes through <strong>Gemini Nano</strong>, the
         AI model built into desktop Chrome. It runs entirely on your machine,
@@ -176,18 +176,23 @@
     }
 
     h1 {
-        font-family: var(--font-pixel, var(--font-mono));
-        color: var(--color-cyan);
-        letter-spacing: 0.1em;
-        margin-bottom: 1rem;
+        font-family: var(--font-blackletter);
+        font-weight: 400;
+        font-size: clamp(2.25rem, 7vw, 3.25rem);
+        line-height: 1.05;
+        color: var(--bone);
+        margin: 0 0 1rem;
     }
 
     h2 {
-        font-size: 0.85rem;
-        letter-spacing: 0.1em;
-        color: var(--color-cyan);
+        font-family: var(--font-display);
+        font-variant: small-caps;
+        text-transform: lowercase;
+        font-weight: 500;
+        font-size: 1.125rem;
+        letter-spacing: 0.12em;
+        color: var(--bone-2);
         margin: 0 0 1rem;
-        text-transform: uppercase;
     }
 
     .intro {
@@ -223,7 +228,7 @@
     }
 
     .checks li.ok .mark {
-        color: var(--color-cyan);
+        color: var(--bone);
     }
 
     .checks li.bad .mark {
@@ -270,8 +275,8 @@
     .btn {
         display: inline-block;
         margin-top: 1rem;
-        color: var(--color-cyan);
-        border: 0.0625rem solid var(--color-cyan);
+        color: var(--bone);
+        border: 1px solid var(--bone-3);
         padding: 0.6rem 1.25rem;
         text-decoration: none;
         font-weight: 700;
@@ -279,8 +284,8 @@
     }
 
     .btn:hover {
-        background: var(--color-cyan);
-        color: var(--bg-void);
+        background: var(--bone);
+        color: var(--ink-0);
     }
 
     @media (max-width: 30rem) {

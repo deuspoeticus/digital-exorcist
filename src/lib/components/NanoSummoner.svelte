@@ -39,8 +39,8 @@
                 reason.{/if}
         </div>
     {:else if $nanoState === "downloadable"}
-        <button class="summon-btn" on:click={summon} disabled={summoning}>
-            {summoning ? "SUMMONING..." : "SUMMON GEMINI NANO"}
+        <button class="summon-btn btn-emboss" on:click={summon} disabled={summoning}>
+            {summoning ? "Summoning…" : "Summon Gemini Nano"}
         </button>
         <div class="line dim">
             One-time download of a few GB. Free, and runs entirely on this
@@ -62,7 +62,7 @@
         </div>
         {#if percent === null && !summoning}
             <!-- Download started elsewhere (another tab / earlier visit): attach to it. -->
-            <button class="summon-btn" on:click={summon}>WATCH PROGRESS</button>
+            <button class="summon-btn btn-sm" on:click={summon}>Watch progress</button>
         {/if}
     {:else if $nanoState === "ready" && !compact}
         <div class="line ok">Gemini Nano is bound. Fully local.</div>
@@ -81,116 +81,96 @@
     .summoner {
         display: flex;
         flex-direction: column;
-        gap: 0.4rem;
-        font-family: var(--font-mono);
-        font-size: 0.8rem;
+        gap: 0.5rem;
+        font-size: var(--text-md);
     }
 
     .summoner.compact {
-        font-size: 0.7rem;
+        font-size: var(--text-sm);
     }
 
     .line {
-        line-height: 1.4;
+        margin: 0;
+        line-height: 1.5;
     }
 
     .compact .line.dim {
-        font-size: 0.6rem;
+        font-size: var(--text-xs);
     }
 
     .dim {
-        color: var(--text-dim);
-        opacity: 0.8;
+        color: var(--bone-4);
     }
 
     .ok {
-        color: var(--color-cyan);
+        color: var(--bone);
     }
 
     .err {
-        color: var(--color-magenta);
+        color: var(--rubric-hi);
         word-break: break-word;
     }
 
     code {
-        color: var(--color-magenta);
+        color: var(--bone-2);
     }
 
     .summon-btn {
-        background: color-mix(in srgb, var(--color-cyan), transparent 88%);
-        border: 0.0625rem solid var(--color-cyan);
-        color: var(--color-cyan);
-        font-family: var(--font-mono);
-        font-weight: 700;
-        font-size: inherit;
-        letter-spacing: 0.05em;
-        padding: 0.4rem 0.75rem;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .summon-btn:hover:not(:disabled) {
-        background: var(--color-cyan);
-        color: var(--bg-void);
-        box-shadow: 0 0 0.625rem var(--color-cyan);
+        padding: 0.55rem 0.75rem;
+        font-size: var(--text-sm);
     }
 
     .summon-btn:disabled {
-        opacity: 0.5;
         cursor: wait;
     }
 
     .progress {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.625rem;
     }
 
     .bar-bg {
         flex: 1;
-        height: 0.375rem;
-        background: rgba(255, 255, 255, 0.05);
-        border: 0.0625rem solid rgba(255, 255, 255, 0.1);
+        height: 2px;
+        background: var(--bone-5);
         overflow: hidden;
     }
 
     .bar-fill {
         height: 100%;
-        background: var(--color-cyan);
-        box-shadow: 0 0 0.5rem var(--color-cyan);
-        transition: width 0.3s ease;
+        background: var(--bone);
+        transition: width 0.3s var(--ease);
     }
 
     .bar-fill.indeterminate {
-        animation: pulse 1s infinite;
+        animation: pulse 1.2s infinite;
     }
 
     .pct {
-        color: var(--text-bright);
-        font-variant-numeric: tabular-nums;
         min-width: 2.5rem;
         text-align: right;
+        font-family: var(--font-pixel);
+        font-size: var(--text-xs);
+        color: var(--bone-2);
+        font-variant-numeric: tabular-nums;
     }
 
     .setup-link {
-        color: var(--color-cyan);
-        font-size: 0.6rem;
+        font-size: var(--text-xs);
+        color: var(--bone-3);
         text-decoration: none;
-        opacity: 0.8;
+        border-bottom: 1px solid var(--bone-5);
+        align-self: flex-start;
     }
 
     .setup-link:hover {
-        opacity: 1;
-        text-decoration: underline;
+        color: var(--bone);
+        border-bottom-color: var(--bone-3);
     }
 
     @keyframes pulse {
-        0%,
-        100% {
-            opacity: 0.3;
-        }
-        50% {
-            opacity: 0.9;
-        }
+        0%, 100% { opacity: 0.25; }
+        50% { opacity: 0.8; }
     }
 </style>

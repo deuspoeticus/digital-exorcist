@@ -7,10 +7,19 @@
         systemStability,
     } from "$lib/stores/appStore";
     import HexDump from "./HexDump.svelte";
+    import Sigil from "./ui/Sigil.svelte";
 
     const dispatch = createEventDispatcher<{ fileSelected: File }>();
 
     export let canvasRef: HTMLCanvasElement;
+    /** Space taken by the side windows, so the image fits between them. */
+    export let insets = { left: 0, right: 0 };
+
+    // Vertical breathing room: toolbar above, terminal below.
+    const TOP_RESERVE = 72;
+    const BOTTOM_RESERVE = 112;
+
+    $: freeCenterX = (insets.left - insets.right) / 2;
 
     // Zoom / Pan / Compare state
     let scale = 1;
@@ -52,40 +61,28 @@
 
     function fitView() {
         if (!$currentRawImage || !containerWidth || !containerHeight) {
-            console.log("FitView Skipped: Missing data", {
-                img: !!$currentRawImage,
-                w: containerWidth,
-                h: containerHeight,
-            });
             scale = 1;
             panX = 0;
             panY = 0;
             return;
         }
 
-        const imageRatio = $currentRawImage.width / $currentRawImage.height;
-        const containerRatio = containerWidth / containerHeight;
+        // Fit inside the free area between the window columns
+        const availW = Math.max(160, containerWidth - insets.left - insets.right);
+        const availH = Math.max(160, containerHeight - TOP_RESERVE - BOTTOM_RESERVE);
 
-        // Fit logic: inverse of cover
-        let rawScale;
-        if (imageRatio > containerRatio) {
-            rawScale = containerWidth / $currentRawImage.width;
-        } else {
-            rawScale = containerHeight / $currentRawImage.height;
-        }
-
-        // Apply padding (95%)
-        rawScale = rawScale * 0.95;
+        let rawScale = Math.min(
+            availW / $currentRawImage.width,
+            availH / $currentRawImage.height,
+        );
 
         // Snap to nearest lower 5% step for cleaner UI numbers
         scale = Math.floor(rawScale / 0.05) * 0.05;
         // Ensure minimum safe scale
         scale = Math.max(scale, 0.05);
 
-        console.log("FitView Applied Scale:", scale, "(Raw:", rawScale, ")");
-
-        panX = 0;
-        panY = 0;
+        panX = freeCenterX;
+        panY = (TOP_RESERVE - BOTTOM_RESERVE) / 2;
         // isComparing = false; // Decoupled
     }
 
@@ -102,6 +99,14 @@
         } else {
             scale = containerWidth / (containerHeight * imageRatio);
         }
+    }
+
+    let dropping = false;
+
+    function onDrop(e: DragEvent) {
+        dropping = false;
+        const file = e.dataTransfer?.files?.[0];
+        if (file && file.type.startsWith("image/")) dispatch("fileSelected", file);
     }
 
     function onFileInput(e: Event) {
@@ -138,6 +143,10 @@
     on:mousemove={handleMouseMove}
     on:mouseup={handleMouseUp}
     on:mouseleave={handleMouseUp}
+    on:dragover|preventDefault={() => (dropping = true)}
+    on:dragleave={() => (dropping = false)}
+    on:drop|preventDefault={onDrop}
+    class:dropping
 >
     <!-- Processing Overlay -->
     {#if $isProcessing}
@@ -178,18 +187,25 @@
         <div
             class="altar-controls"
             class:unstable={$systemStability === "unstable"}
+            style="left: calc(50% + {freeCenterX}px);"
             on:mousedown|stopPropagation
         >
-            <button on:click={() => (scale = Math.min(scale + 0.5, 10))}
-                >+</button
+            <button
+                class="icon"
+                aria-label="Zoom out"
+                on:click={() => (scale = Math.max(scale - 0.5, 0.1))}>−</button
             >
             <span class="scale-label">{Math.round(scale * 100)}%</span>
-            <button on:click={() => (scale = Math.max(scale - 0.5, 0.1))}
-                >-</button
+            <button
+                class="icon"
+                aria-label="Zoom in"
+                on:click={() => (scale = Math.min(scale + 0.5, 10))}>+</button
             >
             <div class="separator"></div>
-            <button class:active={isComparing} on:mousedown={toggleCompare}
-                >Compare</button
+            <button
+                class:active={isComparing}
+                on:mousedown={toggleCompare}
+                title="Hold to see the original">Compare</button
             >
             <div class="separator"></div>
             <button on:click={fitView}>Fit</button>
@@ -209,10 +225,13 @@
                     document.getElementById("fileInput")?.click();
             }}
         >
-            <div class="idle-content">
-                <div class="idle-title">altar</div>
-                <div class="idle-status blink">no vessel loaded</div>
-                <div class="idle-hint">drop or select</div>
+            <div class="idle-content" style="transform: translateX({freeCenterX}px);">
+                <Sigil size={112} spinning />
+                <h1 class="idle-title">The Digital Exorcist</h1>
+                <p class="idle-verse">Lay a vessel upon the altar.</p>
+                <p class="idle-hint">
+                    {dropping ? "release to offer" : "drop an image · or click to choose"}
+                </p>
             </div>
         </div>
     {/if}
@@ -236,20 +255,27 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        background: var(--void-gradient);
+        background: var(--ink-0);
         overflow: hidden;
         z-index: 0;
     }
 
-    /* Noise background */
+    /* Faint vignette: the altar is lit from above */
     .altar::before {
         content: "";
         position: absolute;
         inset: 0;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
-        opacity: 0.15;
+        background: radial-gradient(ellipse 60% 55% at 50% 42%, rgba(230, 225, 213, 0.035), transparent 70%);
         pointer-events: none;
-        z-index: 0;
+    }
+
+    .altar.dropping::after {
+        content: "";
+        position: absolute;
+        inset: 1rem;
+        border: 1px dashed var(--bone-3);
+        pointer-events: none;
+        z-index: 30;
     }
 
     .viewport-content {
@@ -263,41 +289,25 @@
 
     .altar-canvas,
     .altar-image {
-        /* Allow full natural size, scaling handled by transform */
         display: block;
-        box-shadow: var(--aberration-glow);
-        image-rendering: pixelated; /* Ensure crisp scaling */
-        /* max-width: none !important; */
-        /* max-height: none !important; */
-        /* width: auto !important; */
-        /* height: auto !important; */
+        image-rendering: pixelated;
+        box-shadow: 0 2rem 4rem rgba(0, 0, 0, 0.6);
+        outline: 1px solid var(--bone-5);
     }
 
-    /* Glitch effect */
+    /* While the engine works: a chromatic split and a stutter. */
     .altar-canvas.processing {
-        filter: invert(1) contrast(2) saturate(2) hue-rotate(90deg);
-        animation: glitch-anim 0.2s infinite;
+        filter: drop-shadow(-2px 0 rgba(224, 55, 44, 0.55)) drop-shadow(2px 0 rgba(110, 200, 220, 0.4));
+        animation: stutter 0.9s steps(1) infinite;
     }
 
-    @keyframes glitch-anim {
-        0% {
-            transform: translate(0);
-        }
-        20% {
-            transform: translate(-0.25rem, 0.125rem);
-        }
-        40% {
-            transform: translate(-0.125rem, -0.25rem);
-        }
-        60% {
-            transform: translate(0.25rem, 0.125rem);
-        }
-        80% {
-            transform: translate(0.125rem, -0.125rem);
-        }
-        100% {
-            transform: translate(0);
-        }
+    @keyframes stutter {
+        0%, 100% { transform: translate(0); }
+        31% { transform: translate(-1px, 0); }
+        33% { transform: translate(2px, 0); }
+        35% { transform: translate(0); }
+        72% { transform: translate(0, 1px); }
+        74% { transform: translate(0); }
     }
 
     .altar-idle {
@@ -310,110 +320,99 @@
         z-index: 20;
     }
 
-    .altar-controls {
-        position: absolute;
-        top: 2rem;
-        left: 50%;
-        transform: translateX(-50%);
-        backdrop-filter: blur(1rem) saturate(140%);
-        border: 0.0625rem solid var(--color-cyan);
-        padding: 0.5rem 1rem;
-        border-radius: 99rem;
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        z-index: 50;
-        box-shadow: var(--aberration-glow);
-        transition: border-color 0.5s ease;
+    .altar-idle:focus-visible {
+        outline: none;
     }
 
-    .altar-controls.unstable {
-        border-color: var(--color-magenta);
-    }
-
-    .altar-controls button {
-        background: transparent;
-        border: none;
-        color: var(--text-bright);
-        cursor: pointer;
-        font-family: var(--font-pixel);
-        font-size: 0.8rem;
-        padding: 0.25rem 0.75rem;
-        border-radius: 0.25rem;
-        transition: all 0.2s;
-    }
-
-    .altar-controls button:hover {
-        background: var(--bg-panel-hover);
-        color: var(--color-cyan);
-    }
-
-    .altar-controls button.active {
-        background: var(--color-cyan);
-        color: var(--bg-void);
-        box-shadow: 0 0 0.625rem var(--color-cyan);
-    }
-
-    .scale-label {
-        min-width: 2.5rem;
-        text-align: center;
-        font-size: 0.8rem;
-        color: var(--text-dim);
-    }
-
-    .separator {
-        width: 0.0625rem;
-        height: 1rem;
-        background: var(--glass-border);
+    .altar-idle:focus-visible .idle-hint,
+    .altar-idle:hover .idle-hint {
+        color: var(--bone-2);
     }
 
     .idle-content {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 0.5rem;
         text-align: center;
     }
 
     .idle-title {
-        font-family: var(--font-pixel);
-        color: var(--text-dim);
-        font-size: 1.5rem;
-        letter-spacing: 1.25rem;
-        text-transform: uppercase;
-        opacity: 0.6;
+        margin: 1.75rem 0 0;
+        font-family: var(--font-blackletter);
+        font-weight: 400;
+        font-size: 3.25rem;
+        line-height: 1;
+        color: var(--bone);
+        letter-spacing: 0.01em;
     }
 
-    .idle-status {
-        font-family: var(--font-pixel-line);
-        color: var(--text-bright);
-        font-size: 3rem;
-        letter-spacing: 1rem;
-        text-transform: uppercase;
-        text-shadow: var(--aberration-glow);
-    }
-
-    .idle-status.blink {
-        animation: blinker 3s linear infinite;
+    .idle-verse {
+        margin: 0.75rem 0 0;
+        font-family: var(--font-display);
+        font-style: italic;
+        font-size: 1.25rem;
+        color: var(--bone-3);
     }
 
     .idle-hint {
-        font-family: var(--font-pixel);
-        color: var(--text-dim);
-        font-size: 1.2rem;
-        letter-spacing: 0.8rem;
+        margin: 1.75rem 0 0;
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: 0.2em;
         text-transform: uppercase;
+        color: var(--bone-4);
+        transition: color var(--dur) var(--ease);
     }
 
-    @keyframes blinker {
-        0%,
-        100% {
-            opacity: 1;
-            filter: saturate(1);
-        }
-        50% {
-            opacity: 0.3;
-            filter: saturate(4) blur(0.125rem);
-        }
+    /* Toolbar: a plain hairline strip */
+    .altar-controls {
+        position: absolute;
+        top: 1rem;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem;
+        background: rgba(10, 10, 10, 0.85);
+        border: var(--hairline);
+        box-shadow: var(--bevel);
+        z-index: 50;
+    }
+
+    .altar-controls.unstable {
+        border-color: var(--rubric);
+    }
+
+    .altar-controls button {
+        border: none;
+        padding: 0.3rem 0.625rem;
+        font-size: var(--text-xs);
+        color: var(--bone-3);
+    }
+
+    .altar-controls button.icon {
+        font-size: var(--text-md);
+        padding: 0.2rem 0.5rem;
+    }
+
+    .altar-controls button.active {
+        color: var(--ink-0);
+        background: var(--bone);
+    }
+
+    .scale-label {
+        min-width: 3rem;
+        text-align: center;
+        font-family: var(--font-pixel);
+        font-size: var(--text-xs);
+        color: var(--bone-2);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .separator {
+        width: 1px;
+        height: 0.875rem;
+        margin: 0 0.25rem;
+        background: var(--bone-5);
     }
 </style>

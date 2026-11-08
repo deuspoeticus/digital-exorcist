@@ -27,6 +27,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
+    "@fontsource-variable/cormorant-garamond": "^5.3.0",
+    "@fontsource/unifrakturmaguntia": "^5.3.0",
     "@google/generative-ai": "^0.24.1",
     "shell-quote": "^1.8.3",
     "wasm-imagemagick": "^1.2.8"

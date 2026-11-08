@@ -69,7 +69,7 @@
                     class:old={!isExpanded && i < visibleLogs.length - 3}
                     transition:slide={{ duration: 200 }}
                 >
-                    <span class="prompt">></span>
+                    <span class="mark" aria-hidden="true">{parsed.type === "user" ? "℣" : "℟"}</span>
                     {#if parsed.tag}
                         <strong class="log-tag">{parsed.tag}</strong>
                         <span class="log-content">{parsed.content}</span>
@@ -85,11 +85,12 @@
     <!-- The Anchor (Input Bar) -->
     <div class="input-anchor">
         <form on:submit|preventDefault={handleSubmit} class="input-area">
-            <span class="prompt">$</span>
+            <span class="mark input-mark" aria-hidden="true">℣</span>
             <input
                 type="text"
                 bind:value={input}
-                placeholder="Commune with the machine..."
+                placeholder="Commune with the machine…"
+                aria-label="Describe an effect for the machine"
                 disabled={isProcessing}
                 on:focus={() => (isFocused = true)}
                 on:blur={() => (isFocused = false)}
@@ -98,9 +99,10 @@
                 type="button"
                 class="expand-toggle"
                 on:click={toggleExpand}
-                title={isExpanded ? "Minimize Log" : "Expand Log"}
+                title={isExpanded ? "Collapse log" : "Expand log"}
+                aria-label={isExpanded ? "Collapse log" : "Expand log"}
             >
-                {isExpanded ? "▼" : "▲"}
+                <span class="tri" class:open={isExpanded}></span>
             </button>
         </form>
     </div>
@@ -112,8 +114,7 @@
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
-        height: auto;
-        color: var(--text-bright);
+        color: var(--bone);
         font-family: var(--font-mono);
         pointer-events: none;
     }
@@ -129,31 +130,19 @@
         pointer-events: none;
     }
 
-    /* State B Gradient */
-    .typing .backdrop {
-        background: linear-gradient(
-            to top,
-            rgba(5, 0, 10, 0.9) 0%,
-            transparent 100%
-        );
-    }
-
-    /* State C Glass Pane */
     .expanded .backdrop {
-        background: var(--bg-void);
-        backdrop-filter: blur(1.25rem) saturate(140%);
-        border-top: var(--glass-border);
-        opacity: 0.95;
+        background: rgba(8, 8, 8, 0.9);
+        backdrop-filter: var(--glass-blur);
+        border: var(--hairline);
     }
 
     .history-layer {
         position: relative;
         z-index: 2;
-        padding: 0.5rem 1.5rem 0;
+        padding: 0 0.25rem 0.5rem;
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
-        transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
         max-height: 12.5rem;
     }
 
@@ -163,23 +152,18 @@
         overflow-y: auto;
         justify-content: flex-start;
         pointer-events: auto;
+        padding: 0.75rem;
     }
 
-    /* The Ascending Fade */
     .history-fade-container {
         display: flex;
         flex-direction: column;
-        gap: 0.25rem;
-        -webkit-mask-image: none;
-        mask-image: none;
+        align-items: flex-start;
+        gap: 2px;
     }
 
     .should-fade .history-fade-container {
-        -webkit-mask-image: linear-gradient(
-            to top,
-            black 70%,
-            transparent 100%
-        );
+        -webkit-mask-image: linear-gradient(to top, black 70%, transparent 100%);
         mask-image: linear-gradient(to top, black 70%, transparent 100%);
     }
 
@@ -188,108 +172,154 @@
         mask-image: none;
     }
 
+    /* Subtitle strips: legible over any image */
     .log-line {
-        font-size: 0.85rem;
-        line-height: 1.4;
-        word-break: break-all;
-        text-shadow: 0 0 0.3125rem rgba(0, 0, 0, 0.5);
-        color: var(--text-dim);
+        max-width: 100%;
+        padding: 0.125rem 0.5rem;
+        background: rgba(6, 6, 6, 0.78);
+        font-size: var(--text-md);
+        line-height: 1.45;
+        word-break: break-word;
+        color: var(--bone-2);
+    }
+
+    .expanded .log-line {
+        background: none;
+        padding: 0.0625rem 0;
     }
 
     .log-line.old {
-        opacity: 0.4;
+        opacity: 0.45;
     }
 
-    .log-system {
-        color: var(--color-cyan);
-    }
-
-    .log-ai {
-        color: var(--color-magenta);
-    }
-
-    .log-user {
-        color: var(--text-bright);
-    }
-
-    .log-error {
-        color: #ff3333;
+    .mark {
+        display: inline-block;
+        width: 1.1em;
+        font-family: var(--font-display);
+        color: var(--rubric-hi);
     }
 
     .log-tag {
-        font-weight: bold;
-        margin-right: 0.25rem;
-        opacity: 0.8;
+        font-family: var(--font-pixel);
+        font-weight: normal;
+        font-size: var(--text-xs);
+        letter-spacing: 0.06em;
+        margin-right: 0.375rem;
+        color: var(--bone-4);
     }
 
     .log-content {
-        color: var(--text-bright);
+        color: var(--bone-2);
+    }
+
+    .log-user .log-content,
+    .log-ai .log-content {
+        color: var(--bone);
+    }
+
+    .log-ai .log-tag {
+        color: var(--bone-3);
+    }
+
+    .log-error .log-tag,
+    .log-error .log-content {
+        color: var(--rubric-hi);
     }
 
     .input-anchor {
         position: relative;
         z-index: 10;
-        padding: 0.25rem 0.5rem 0.5rem;
         pointer-events: auto;
     }
 
+    /* Liquid glass: the one place the UI turns physical */
     .input-area {
+        position: relative;
         display: flex;
         align-items: center;
-        background: var(--bg-glass);
-        backdrop-filter: blur(1rem) saturate(140%);
-        border: 0.0625rem solid var(--color-cyan);
-        padding: 0 1rem;
-        height: 3rem;
-        box-shadow: var(--aberration-glow);
-        transition: all 0.5s ease;
+        height: 2.875rem;
+        padding: 0 0.625rem 0 1rem;
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        box-shadow: var(--glass-shadow);
+        transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+    }
+
+    .input-area::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 50% 0;
+        background: var(--glass-specular);
+        pointer-events: none;
+    }
+
+    .input-area:focus-within {
+        border-color: rgba(255, 255, 255, 0.2);
     }
 
     .ghost-terminal.unstable .input-area {
-        border-color: var(--color-magenta);
+        border-color: var(--rubric);
     }
 
-    .prompt {
-        color: var(--color-cyan);
-        margin-right: 0.75rem;
-        font-weight: bold;
+    .input-mark {
+        font-size: 1.125rem;
+        margin-right: 0.5rem;
     }
 
     input {
+        position: relative;
         flex: 1;
         background: transparent;
         border: none;
-        color: var(--text-bright);
-        font-family: inherit;
-        font-size: 0.95rem;
+        color: var(--bone);
+        font-family: var(--font-mono);
+        font-size: var(--text-lg);
         outline: none;
-        caret-color: var(--color-magenta);
+        caret-color: var(--rubric-hi);
+    }
+
+    input:focus-visible {
+        outline: none;
     }
 
     input::placeholder {
-        color: var(--text-dim);
+        font-family: var(--font-display);
         font-style: italic;
+        font-size: 1.0625rem;
+        color: var(--bone-4);
     }
 
     .expand-toggle {
-        background: transparent;
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        padding: 0;
         border: none;
-        color: var(--text-dim);
-        cursor: pointer;
-        font-size: 1rem;
-        padding: 0.5rem;
-        transition: color 0.2s;
+        background: transparent;
     }
 
-    .expand-toggle:hover {
-        color: var(--color-cyan);
+    .expand-toggle:hover:not(:disabled) {
+        background: transparent;
     }
 
-    .history-layer.scrollable::-webkit-scrollbar {
-        width: 0.375rem;
+    .tri {
+        width: 0;
+        height: 0;
+        border-left: 0.3rem solid transparent;
+        border-right: 0.3rem solid transparent;
+        border-bottom: 0.375rem solid var(--bone-3);
+        transition: transform var(--dur) var(--ease);
     }
-    .history-layer.scrollable::-webkit-scrollbar-thumb {
-        background: var(--bg-glass);
-        border: 0.0625rem solid var(--bg-void);
+
+    .expand-toggle:hover .tri {
+        border-bottom-color: var(--bone);
+    }
+
+    .tri.open {
+        transform: rotate(180deg);
     }
 </style>
