@@ -1,117 +1,48 @@
-# Digital Exorcist: Technical Roadmap & Beta Status
+# Roadmap
 
-> **Status:** Pre-Alpha  
-> **Version:** 0.0.1  
-> **Last Updated:** 2026-02-19
+Last updated: November 2026.
 
-## 1. Project Overview & Achievements
-Scale: 0% ———|— 40% —————— 100% (Beta)
+## Current state
 
-We are approximately **40% complete** towards a functional Beta. The core engine and aesthetics are solid, but user persistence and fine-grained controls are missing.
+The app is deployed at https://deuspoeticus.github.io/digital-exorcist/ and works for its core purpose: loading an image, building a stack of ImageMagick effects, tuning them and exporting the result.
 
-### ✅ Achieved Milestones
-*   **Core Architecture**
-    *   [x] **SvelteKit + Vite** project structure initialized.
-    *   [x] **ImageMagick WASM** integrated via Web Worker (`MagickBridge`) for non-blocking UI.
-    *   [x] **Gemini AI Integration** for prompt-to-command ("Vibe") generation.
-    *   [x] **Command Parser** (`parser.ts`) to deconstruct IM commands into UI-editable sliders.
-*   **User Interface (The "Altar")**
-    *   [x] **Draggable Window System** implemented (`DraggableWindow.svelte`) for modular tools.
-    *   [x] **Terminal Component** for direct CLI interaction and logs.
-    *   [x] **Canvas Rendering** with zoom/pan support (`Altar.svelte`).
-    *   [x] **Preset System** ("Grimoire") with categorization (Sigils, Codex, Spellbook).
-*   **Design System**
-    *   [x] **"Astral Glitch" Theme:** Consistent use of `Geist Mono`, neon colors (`--color-cyan`, `--color-magenta`), and glassmorphism.
-    *   [x] **Relative Units:** comprehensive migration to `rem` for scalability.
+Working:
 
----
+- ImageMagick (WebAssembly) in a Web Worker, also under the GitHub Pages subpath.
+- Grimoire presets, the ritual stack with reordering, toggles, parameter sliders, undo and clear.
+- Terminal prompts through Gemini Nano (on device) or Claude Haiku 5.5 (user's own key).
+- In-app Gemini Nano setup: detection, a download button with progress, and a diagnostics page.
+- Draggable windows that stay inside the viewport, a desktop-only notice for small screens, and drag and drop.
+- Automatic deployment to GitHub Pages on every push to `main`.
+- Unit tests for the parser, validator, sanitizer, command splitter and effect stack, run in CI.
 
-## 2. Technical Architecture (Current State)
+## Next
 
-### Data Flow
-1.  **Input:** User drags image -> `processImageToRaw()` -> `currentRawImage` (Store).
-2.  **Processing:**
-    *   **Manual:** User adjusts slider -> `updateEntryEffects()` -> `appStore`.
-    *   **AI:** User types prompt -> Gemini API -> `validateCommand` -> `pushEntry()`.
-3.  **Execution:** `buildStackCommand()` constructs the full CLI string -> sent to `worker.ts` via `MagickBridge`.
-4.  **Output:** Worker returns `ImageBitmap` -> Painted to `<canvas>` in `Altar.svelte`.
+Ordered by priority.
 
-### Key Files
-*   **State:** `src/lib/stores/appStore.ts` (Central source of truth for stack, image, logs).
-*   **Logic:** `src/lib/effects/parser.ts` (Regex-based command parsing).
-*   **Worker:** `src/lib/workers/bridge.ts` (Typed wrapper around the IM worker).
-*   **Config:** `src/lib/ai/config.ts` (System prompts, allowed flags, presets).
+1. **Better export.** Add PNG export, since JPEG compression blurs hard pixel edges. Confirm that export uses the full loaded resolution.
+2. **Browser tests in CI.** Turn the manual headless Chrome checks into a Playwright suite: the worker under the Pages subpath, presets, the stack, the glitch state, and both AI paths with mocked APIs.
+3. **Save and share rituals.** Store a stack under a name in the browser, and encode it in the URL so it can be shared as a link without a server.
+4. **Animated export.** Render a ritual over several frames with varying parameters and export it as GIF or WebM.
+5. **Heresy mode.** An optional switch that sends AI output to ImageMagick without validation, so failed and partial renders become visible.
+6. **Image-aware prompts.** Let the model see a thumbnail of the image. This stays local with Gemini Nano. With Claude, the image would be sent to Anthropic, so it would need to be opt-in.
+7. **Faster tuning.** Cache the output of each stack step so that changing a late step does not rerun the whole stack.
 
----
+## Known issues
 
-## 3. Architecture & Refactoring (Optimization Phase) 🔧
-*Goal: Decouple the monolithic `+page.svelte` and ensure type safety.*
+- **Gemini Nano download can stall.** On at least one Linux laptop that met every requirement, Chrome reported "Foreground Installing" at 0% and never downloaded. The cause is inside Chrome and has not been found. See `SETUP_AI.md` for diagnostics.
+- **Unverified Nano details.** The download progress handling and the fallback that retries session creation without `temperature` and `topK` were tested against a mocked API only.
+- **Leftover cloud route.** `src/routes/api/ai/+server.ts` and the cloud fallback in `src/lib/ai/gemini.ts` are no longer used by the deployed site. They are only reached if a Gemini Nano session fails during a prompt, and then the request fails and a random preset is applied. The route also refers to a retired Gemini model. It should be removed.
+- **Old ImageMagick.** `wasm-imagemagick` bundles ImageMagick 7.0.x from 2019 and is unmaintained. Newer operators are missing.
+- **Large images.** Images are capped at 3840 pixels on the long side. Long stacks on large images can take several seconds, and the processing effect may stutter.
+- **Duplicate `-alpha opaque`.** The stack runner appends `-alpha opaque` to commands that already end with it. It is harmless but adds noise.
 
-### Current Issues identified
-1.  **Monolithic Controller:** `src/routes/+page.svelte` handles too much: UI layout, file I/O, AI orchestration, and worker events.
-2.  **Type Looseness:** `bridge.ts` uses `any` for worker messages, bypassing strict type checks.
-3.  **Redundant Logic:** Canvas drawing code is duplicated between initialization and "show original".
+## Decisions
 
-### Target Architecture
-*   **View Layer (Svelte):** Purely reactive. Components (`Altar`, `Terminal`) subscribe to `appStore` and dispatch simple events.
-*   **State Layer (Stores):** `appStore` holds all UI state. `auditStore` holds metrics.
-*   **Service Layer (The "Brain"):**
-    *   **`AiAgent` (New):** Encapsulates the "User Prompt -> Gemini -> Validator -> Stack Push" workflow.
-    *   **`MagickBridge`:** Existing worker wrapper, to be typed strictly.
-    *   **`FileHandler` (New):** Abstraction for loading files and extracting raw data.
-*   **Engine Layer (Worker):** `magick.worker.ts` executing WASM commands.
+These choices are deliberate and should stay unless the goals change.
 
-### Optimization Plan
-*   [ ] **Refactor `+page.svelte`:** Move `onTerminalCommand` logic to `lib/services/aiAgent.ts`.
-*   [ ] **Strict Typing:** Define `WorkerMessage` types in `bridge.ts` to remove `as any`.
-*   [ ] **Utility Extraction:** Move canvas operations to `lib/utils/canvas.ts`.
-*   [ ] **CSS Cleanup:** Verify generic tokens in `app.css` and remove unused specific class overrides.
-
----
-
-## 4. Beta Roadmap (The Path Forward)
-
-### Phase 1: The Grimoire (Persistence) 🚧 **HIGH PRIORITY**
-*Goal: Enable users to save, load, and share their ritual stacks.*
-
-#### Technical Implementation
-1.  **Store Enhancements (`appStore.ts`):**
-    *   Implement `localStorage` syncing for a `savedRituals` array.
-    *   Create a `Ritual` interface: `{ id: string, name: string, date: number, stack: StackEntry[] }`.
-2.  **UI Components:**
-    *   **Save Action:** Add "Save Ritual" button to `RitualContent` header.
-    *   **Library View:** Update `GrimoireContent.svelte` to list "User Rituals" with delete/load actions.
-3.  **Serialization:**
-    *   Ensure `StackEntry` objects are JSON-safe (strip runtime-only state if any).
-
-### Phase 2: Arcane Controls (Advanced Inputs) 🛠
-*Goal: Provide surgical control over parameters beyond simple sliders.*
-
-#### Technical Implementation
-1.  **New Component: `ParameterInput.svelte`**
-    *   **Number:** Combined slider + text input for precise values. Support "infinite" ranges for flags like `-evaluate` (0.1 to 100+).
-    *   **Color:** Hex input + visual color picker for flags like `-fill`, `-tint`.
-    *   **Select:** Dropdowns for restricted enums (e.g., `-compose` methods, `-morphology` kernels) defined in `config.ts`.
-2.  **Refactor `EffectStack.svelte`:**
-    *   Replace the generic `<input type="range">` loop with specific `ParameterInput` instances based on the effect type.
-3.  **Command Parser Update:**
-    *   Update `parser.ts` to correctly identify and type these arguments (e.g., distinguishing a color argument from a numeric one).
-
-### Phase 3: Polish & "Juice" ✨
-*Goal: Elevate the sensory experience.*
-
-1.  **Audio Feedback:**
-    *   Implement `src/lib/utils/audio.ts` for UI sounds (hover clicks, processing hum, completion chime).
-2.  **Visual Feedback:**
-    *   Add "Processing" states to individual stack items.
-    *   Error handling: Visual red flash on stack entries that cause IM errors.
-3.  **Export Options:**
-    *   Implement "Export at Original Resolution" (currently processes at preview size).
-    *   Add "Copy Command" button to clipboard.
-
----
-
-## 4. Known Issues / Debt
-*   **Mobile Support:** The draggable window layout is desktop-only. Need a stack-based mobile layout or a "desktop only" warning.
-*   **Performance:** Large stacks (>10 effects) on high-res images may block the worker too long. Need to investigate chunked processing or progress reporting.
-*   **Parser Fragility:** The regex parser works for documented presets but may fail on complex, nested commands generated by AI.
+- **ImageMagick command lines.** The project keeps `wasm-imagemagick` because it runs real command lines. The maintained `@imagemagick/magick-wasm` package only offers an object API, which would break the terminal, the presets and the AI output.
+- **Unpredictable output is part of the design.** The AI is allowed to produce strange or partly broken commands. Fixes should target broken plumbing and leave the randomness of the results alone.
+- **Desktop only.** Small screens get a notice asking for a larger screen. There is no mobile layout.
+- **No server.** Everything runs in the browser. Features that would need a server, such as a public gallery, are out of scope.
+- **Visual language.** Ink and bone colours with one red accent. IM Fell for names and labels, Geist Mono for data and commands, blackletter only for the wordmark, and the pixel font only during processing. 3D and glitch effects are limited to small details and the processing state.
