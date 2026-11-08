@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { createEventDispatcher } from "svelte";
-    import { getNextZIndex } from "$lib/stores/appStore";
+    import { createEventDispatcher, onMount, onDestroy } from "svelte";
+    import { getNextZIndex, ritualGlitch } from "$lib/stores/appStore";
     import GlassPanel from "./GlassPanel.svelte";
     import { slide } from "svelte/transition";
 
@@ -70,6 +70,46 @@
     }
 
     const dispatch = createEventDispatcher();
+
+    // ── Corrupted type: the title briefly decays into machine glyphs ──
+    const GLYPHS = "▚▞▙▟░▒▓#%&@$§¤0123456789";
+    type Ch = { c: string; g: boolean };
+    const plain = (t: string): Ch[] => [...t].map((c) => ({ c, g: false }));
+    let chars: Ch[] = plain(title);
+    let corrupting = false;
+    let corruptTimer: ReturnType<typeof setInterval> | undefined;
+    let reducedMotion = false;
+
+    $: if (!corrupting) chars = plain(title);
+
+    function corrupt(duration = 380) {
+        if (reducedMotion) return;
+        clearInterval(corruptTimer);
+        corrupting = true;
+        const start = performance.now();
+        corruptTimer = setInterval(() => {
+            const t = (performance.now() - start) / duration;
+            if (t >= 1) {
+                clearInterval(corruptTimer);
+                corrupting = false;
+                chars = plain(title);
+                return;
+            }
+            // Early on most letters are corrupt; they resolve left-to-right-ish.
+            chars = [...title].map((c, i) =>
+                c !== " " && Math.random() > t + i / (title.length * 4)
+                    ? { c: GLYPHS[Math.floor(Math.random() * GLYPHS.length)], g: true }
+                    : { c, g: false },
+            );
+        }, 45);
+    }
+
+    $: if ($ritualGlitch) corrupt(620);
+
+    onMount(() => {
+        reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    });
+    onDestroy(() => clearInterval(corruptTimer));
 </script>
 
 <svelte:window
@@ -82,6 +122,7 @@
 <div
     class="window"
     class:dragging={isDragging}
+    class:glitching={$ritualGlitch}
     role="presentation"
     style="left: {clampedX}px; top: {clampedY}px; z-index: {zIndex};"
     bind:clientWidth={width}
@@ -89,9 +130,13 @@
     on:pointerdown={onPointerDown}
 >
     <GlassPanel className="window-panel {className}">
-        <div class="window-header">
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div class="window-header" on:mouseenter={() => corrupt()}>
             {#if numeral}<span class="numeral">{numeral}</span>{/if}
-            <span class="window-title">{title}</span>
+            <span class="window-title" aria-label={title}
+                >{#each chars as ch}{#if ch.g}<span class="g" aria-hidden="true">{ch.c}</span
+                        >{:else}{ch.c}{/if}{/each}</span
+            >
             <div class="window-controls">
                 <button
                     class="control-btn"
@@ -154,15 +199,31 @@
 
     .window-title {
         flex: 1;
-        font-family: var(--font-display);
-        font-variant: small-caps;
+        font-family: var(--font-sc);
         text-transform: lowercase;
-        font-size: 1rem;
-        font-weight: 500;
-        letter-spacing: 0.14em;
+        font-size: 1.0625rem;
+        font-weight: 400;
+        letter-spacing: 0.12em;
         color: var(--bone);
         pointer-events: none;
         white-space: nowrap;
+    }
+
+    .g {
+        font-family: var(--font-pixel);
+        color: var(--rubric-hi);
+        letter-spacing: 0;
+    }
+
+    /* A short jolt when the ritual begins */
+    .window.glitching {
+        animation: jolt 0.18s steps(2, jump-none) 3;
+    }
+
+    @keyframes jolt {
+        0% { transform: translate(0, 0); }
+        50% { transform: translate(-2px, 1px); }
+        100% { transform: translate(1px, -1px); }
     }
 
     .control-btn {

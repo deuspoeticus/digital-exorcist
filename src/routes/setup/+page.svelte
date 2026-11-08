@@ -64,7 +64,7 @@
 </svelte:head>
 
 <main class="container">
-    <h1>Neural Link Setup</h1>
+    <h1 class="misreg" data-text="Neural Link Setup">Neural Link Setup</h1>
     <p class="intro">
         The Exorcist hears your vibes through <strong>Gemini Nano</strong>, the
         AI model built into desktop Chrome. It runs entirely on your machine,
@@ -185,8 +185,7 @@
     }
 
     h2 {
-        font-family: var(--font-display);
-        font-variant: small-caps;
+        font-family: var(--font-sc);
         text-transform: lowercase;
         font-weight: 500;
         font-size: 1.125rem;

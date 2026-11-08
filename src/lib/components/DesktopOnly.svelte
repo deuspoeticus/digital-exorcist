@@ -4,7 +4,7 @@
 
 <div class="desktop-only" role="alert">
     <Sigil size={88} />
-    <h1>The Digital Exorcist</h1>
+    <h1 class="misreg" data-text="The Digital Exorcist">The Digital Exorcist</h1>
     <p class="verse">This rite requires a larger altar.</p>
     <p class="fine-print">
         Return on a desktop or laptop screen, at least 900 pixels wide.

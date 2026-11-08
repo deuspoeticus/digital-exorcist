@@ -367,8 +367,7 @@
     }
 
     .effect-name {
-        font-family: var(--font-display);
-        font-variant: small-caps;
+        font-family: var(--font-sc);
         text-transform: lowercase;
         letter-spacing: 0.1em;
         font-size: 0.8125rem;

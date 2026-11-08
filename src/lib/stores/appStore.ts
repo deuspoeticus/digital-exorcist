@@ -42,6 +42,23 @@ export const currentRawImage = writable<RawImageData | null>(null);
 
 // ─── Processing State ───────────────────────────────────────────────────
 export const isProcessing = writable(false);
+
+/** The visible "ritual" glitch. Follows isProcessing, but holds for a minimum
+ *  duration so fast operations (~100 ms) still read as a possession. */
+const GLITCH_MIN_MS = 560;
+export const ritualGlitch = writable(false);
+let glitchStart = 0;
+let glitchTimer: ReturnType<typeof setTimeout> | undefined;
+isProcessing.subscribe((busy) => {
+    if (busy) {
+        clearTimeout(glitchTimer);
+        glitchStart = Date.now();
+        ritualGlitch.set(true);
+    } else if (glitchStart) {
+        const left = Math.max(0, GLITCH_MIN_MS - (Date.now() - glitchStart));
+        glitchTimer = setTimeout(() => ritualGlitch.set(false), left);
+    }
+});
 export const status = writable('Initializing...');
 export const processingId = writable(0);
 
