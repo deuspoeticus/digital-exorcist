@@ -52,9 +52,11 @@
 
     .hex-line {
         white-space: pre;
-        font-family: var(--font-pixel);
-        font-size: var(--text-xs);
-        line-height: 1.3;
+        font-family: var(--font-mono);
+        font-weight: 700;
+        font-size: var(--text-sm);
+        line-height: 1.35;
+        font-variant-numeric: tabular-nums;
         color: #fff;
         text-shadow:
             0 0 2px rgba(255, 255, 255, 0.9),

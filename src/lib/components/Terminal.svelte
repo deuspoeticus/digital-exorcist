@@ -69,7 +69,7 @@
                     class:old={!isExpanded && i < visibleLogs.length - 3}
                     transition:slide={{ duration: 200 }}
                 >
-                    <span class="mark" aria-hidden="true">{parsed.type === "user" ? "℣" : "℟"}</span>
+                    <span class="mark" aria-hidden="true">∅</span>
                     {#if parsed.tag}
                         <strong class="log-tag">{parsed.tag}</strong>
                         <span class="log-content">{parsed.content}</span>
@@ -85,7 +85,7 @@
     <!-- The Anchor (Input Bar) -->
     <div class="input-anchor">
         <form on:submit|preventDefault={handleSubmit} class="input-area">
-            <span class="mark input-mark" aria-hidden="true">℣</span>
+            <span class="mark input-mark" aria-hidden="true">∅</span>
             <input
                 type="text"
                 bind:value={input}
@@ -194,8 +194,8 @@
 
     .mark {
         display: inline-block;
-        width: 1.1em;
-        font-family: var(--font-display);
+        width: 1.4em;
+        font-family: var(--font-mono);
         color: var(--rubric-hi);
     }
 
@@ -264,7 +264,7 @@
     }
 
     .input-mark {
-        font-size: 1.125rem;
+        font-size: var(--text-lg);
         margin-right: 0.5rem;
     }
 
