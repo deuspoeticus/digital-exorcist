@@ -147,7 +147,7 @@
     .param-value {
         min-width: 2.75rem;
         text-align: right;
-        font-family: var(--font-pixel);
+        font-family: var(--font-mono);
         font-size: var(--text-xs);
         color: var(--bone-2);
         font-variant-numeric: tabular-nums;

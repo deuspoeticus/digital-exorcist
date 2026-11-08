@@ -200,7 +200,7 @@
     }
 
     .log-tag {
-        font-family: var(--font-pixel);
+        font-family: var(--font-mono);
         font-weight: normal;
         font-size: var(--text-xs);
         letter-spacing: 0.06em;

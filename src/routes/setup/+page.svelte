@@ -176,9 +176,9 @@
     }
 
     h1 {
-        font-family: var(--font-blackletter);
+        font-family: var(--font-display);
         font-weight: 400;
-        font-size: clamp(2.25rem, 7vw, 3.25rem);
+        font-size: clamp(2rem, 6vw, 2.75rem);
         line-height: 1.05;
         color: var(--bone);
         margin: 0 0 1rem;

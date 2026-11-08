@@ -220,7 +220,7 @@
     }
 
     .stack-count {
-        font-family: var(--font-pixel);
+        font-family: var(--font-mono);
         font-size: var(--text-xs);
         color: var(--bone-3);
     }
@@ -248,7 +248,7 @@
     }
 
     .idx {
-        font-family: var(--font-pixel);
+        font-family: var(--font-mono);
         font-size: var(--text-xs);
         color: var(--bone-4);
         width: 1.25rem;

@@ -7,13 +7,6 @@
     export let category = "";
 
     import { createEventDispatcher } from "svelte";
-
-    // Deterministic hand-applied tilt per label, between about -1.6° and +1.6°.
-    function tilt(name: string): number {
-        let h = 0;
-        for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) | 0;
-        return ((Math.abs(h) % 7) - 3) * 0.55;
-    }
     const dispatch = createEventDispatcher<{
         select: { label: string; command: string };
     }>();
@@ -24,15 +17,15 @@
         {#if numeral}<span class="numeral">{numeral}</span>{/if}
         <span class="rubric-label">{label}</span>
     </h3>
-    <div class="chips" class:spellbook-chips={category === "spellbook"}>
+    <div class="chips">
         {#each Object.entries(presets) as [name, command]}
             <button
                 class="chip {category}"
-                style="{chipStyle}{category === 'spellbook' ? `--tilt: ${tilt(name)}deg;` : ''}"
+                style={chipStyle}
                 {disabled}
                 title={command}
                 on:click={() => dispatch("select", { label: name, command })}
-                >{category === "spellbook" ? name.toUpperCase() : name.toLowerCase()}</button
+                >{name.toLowerCase()}</button
             >
         {/each}
     </div>
@@ -56,8 +49,9 @@
     }
 
     .numeral {
-        font-family: var(--font-pixel);
-        font-size: var(--text-xs);
+        font-family: var(--font-display);
+        font-style: italic;
+        font-size: 0.9375rem;
         color: var(--rubric-hi);
     }
 
@@ -72,12 +66,17 @@
         gap: 0.3125rem;
     }
 
+    /* The rite's name is sacred (Fell italic); the command it becomes,
+       in the stack and terminal, is profane (mono). */
     .chip {
         position: relative;
-        padding: 0.25rem 0.5rem;
-        font-size: var(--text-sm);
+        padding: 0.125rem 0.55rem 0.2rem;
+        font-family: var(--font-display);
+        font-style: italic;
+        font-size: 0.9375rem;
+        line-height: 1.25;
         text-transform: lowercase;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.01em;
         color: var(--bone-2);
         border: var(--hairline-strong);
         white-space: nowrap;
@@ -107,96 +106,23 @@
         background: var(--rubric-hi);
     }
 
-    /* Spellbook: DYMO tape. Red plastic, raised letters, stuck on by hand.
-       The punk label-maker meets the embossed rubric. */
-    .spellbook-chips {
-        gap: 0.5rem 0.4rem;
-    }
-
+    /* Spellbook: the higher rite — embossed ink with a gilt edge. */
     .chip.spellbook {
-        overflow: hidden;
-        padding: 0.3rem 0.6rem 0.28rem;
-        border: none;
-        font-family: var(--font-mono);
-        font-weight: 700;
-        font-size: 0.625rem;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        /* stressed plastic turns the raised letters whitish */
-        color: rgba(255, 236, 230, 0.94);
-        background: linear-gradient(180deg, #d0352a 0%, #ad2219 48%, #8a170f 100%);
-        text-shadow:
-            0 1px 0 rgba(60, 4, 0, 0.75),
-            0 -1px 0 rgba(255, 255, 255, 0.28);
-        box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.32),
-            inset 0 -1px 0 rgba(0, 0, 0, 0.4),
-            0 1px 0 rgba(0, 0, 0, 0.8),
-            0 3px 6px rgba(0, 0, 0, 0.55);
-        transform: rotate(var(--tilt, 0deg));
-        transition:
-            transform 220ms var(--ease),
-            box-shadow 220ms var(--ease),
-            filter 220ms var(--ease);
-    }
-
-    /* Gloss on the upper half of the tape */
-    .chip.spellbook::before {
-        content: "";
-        position: absolute;
-        inset: 0 0 52% 0;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.04));
-        pointer-events: none;
-    }
-
-    /* A glint that sweeps across on hover */
-    .chip.spellbook::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: -60%;
-        width: 40%;
-        background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
-        transform: skewX(-18deg);
-        opacity: 0;
-        pointer-events: none;
+        color: var(--bone);
+        background: var(--emboss-bg);
+        border: 1px solid transparent;
+        border-image: linear-gradient(135deg, #6f5322 0%, #e3c27a 30%, #8f6d2c 52%, #f2dc9e 74%, #7a5c25 100%) 1;
+        box-shadow: var(--emboss-shadow);
     }
 
     .chip.spellbook:hover:not(:disabled) {
-        color: #fff;
-        background: linear-gradient(180deg, #e0423a 0%, #bd281e 48%, #951910 100%);
-        transform: rotate(0deg) translateY(-2px) scale(1.04);
-        text-shadow:
-            0 1px 0 rgba(60, 4, 0, 0.75),
-            -1px 0 0 rgba(110, 200, 220, 0.55),
-            1px 0 0 rgba(255, 240, 120, 0.35);
-        box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.4),
-            inset 0 -1px 0 rgba(0, 0, 0, 0.4),
-            0 0 0.9rem rgba(224, 55, 44, 0.55),
-            0 6px 12px rgba(0, 0, 0, 0.6);
-    }
-
-    .chip.spellbook:hover:not(:disabled)::after {
-        opacity: 1;
-        animation: glint 0.7s var(--ease) forwards;
-    }
-
-    @keyframes glint {
-        to { left: 130%; }
+        background: var(--emboss-bg);
+        border-image: linear-gradient(135deg, #8a6a2c 0%, #f5d98f 30%, #b08a3c 52%, #fff0bf 74%, #957233 100%) 1;
     }
 
     .chip.spellbook:active:not(:disabled) {
-        transform: rotate(0deg) translateY(0) scale(0.98);
-        filter: brightness(0.85);
-        box-shadow:
-            inset 0 2px 3px rgba(0, 0, 0, 0.5),
-            0 1px 0 rgba(0, 0, 0, 0.8);
-    }
-
-    .chip.spellbook:disabled {
-        opacity: 0.45;
-        filter: saturate(0.4);
+        background: var(--ink-1);
+        color: var(--bone);
+        box-shadow: var(--emboss-pressed);
     }
 </style>

@@ -55,10 +55,10 @@
         font-family: var(--font-pixel);
         font-size: var(--text-xs);
         line-height: 1.3;
-        color: var(--bone-4);
-    }
-
-    .hex-line:last-child {
-        color: var(--rubric-hi);
+        color: #fff;
+        text-shadow:
+            0 0 2px rgba(255, 255, 255, 0.9),
+            0 0 8px rgba(255, 255, 255, 0.6),
+            0 0 18px rgba(255, 255, 255, 0.35);
     }
 </style>

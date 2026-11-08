@@ -190,11 +190,11 @@
     }
 
     .numeral {
-        font-family: var(--font-pixel);
-        font-size: var(--text-xs);
+        font-family: var(--font-display);
+        font-size: 0.9375rem;
         color: var(--rubric-hi);
-        min-width: 1.25rem;
-        letter-spacing: 0.05em;
+        min-width: 1.5rem;
+        letter-spacing: 0.04em;
     }
 
     .window-title {

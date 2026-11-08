@@ -499,7 +499,7 @@
         display: flex;
         gap: 0;
         margin: 2.75rem 0 0;
-        font-family: var(--font-pixel);
+        font-family: var(--font-mono);
         font-size: 0.5625rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -559,7 +559,7 @@
     .scale-label {
         min-width: 3rem;
         text-align: center;
-        font-family: var(--font-pixel);
+        font-family: var(--font-mono);
         font-size: var(--text-xs);
         color: var(--bone-2);
         font-variant-numeric: tabular-nums;

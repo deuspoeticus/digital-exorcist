@@ -7,14 +7,6 @@
 }
 
 @font-face {
-    font-family: 'Geist Pixel Line';
-    src: url('/fonts/GeistPixel-Line.woff2') format('woff2');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
     font-family: 'Geist Pixel Square';
     src: url('/fonts/GeistPixel-Square.woff2') format('woff2');
     font-weight: normal;
@@ -51,12 +43,16 @@
     /* Type: high (serif, blackletter) against low (mono, pixel) */
     /* IM Fell: 17th-century Oxford types, digitized with their ink spread
        and worn edges intact. Liturgy that has already been through the machine. */
+    /* Two voices at rest, a third only during possession:
+       blackletter — the logotype, nothing else;
+       Fell        — the sacred voice: names, rites, verses;
+       Mono        — the profane voice: data, commands, actions;
+       Pixel       — the machine breaking through (ritual only). */
     --font-blackletter: 'UnifrakturMaguntia', 'IM Fell DW Pica', serif;
     --font-display: 'IM Fell DW Pica', Georgia, serif;
     --font-sc: 'IM Fell DW Pica SC', 'IM Fell DW Pica', Georgia, serif;
     --font-mono: 'Geist Mono', ui-monospace, monospace;
     --font-pixel: 'Geist Pixel Square', 'Geist Mono', monospace;
-    --font-pixel-line: 'Geist Pixel Line', 'Geist Mono', monospace;
 
     --text-xs: 0.625rem;
     --text-sm: 0.6875rem;
