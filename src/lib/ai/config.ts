@@ -111,7 +111,7 @@ export const READY_EFFECTS: Record<string, string> = {
   'Noise': "-channel RGB -fx 'u+(rand()-0.5)' +noise Laplacian -attenuate 0.9 +channel -alpha opaque",
   'Plasma': "-channel RGB -morphology Distance Euclidean:4 -level 0%,90% -auto-level +channel -alpha opaque",
   'Structure': "-channel RGB -morphology Distance Euclidean:4 -auto-level -morphology TopHat Disk:1 -auto-level +channel -alpha opaque",
-  'Deepfry': "-chann  el RGB -modulate 150,200,100 -posterize 2 +channel -alpha opaque",
+  'Deepfry': "-channel RGB -modulate 150,200,100 -posterize 2 +channel -alpha opaque",
   'Spectral': "-channel RGB -virtual-pixel Mirror -distort Polar 0 +channel -alpha opaque",
   'Azule': "-channel RGB -colorspace Gray -edge 1 -fill '#0033cc' -opaque black +channel -alpha opaque",
   'Flux': "-channel RGB -function Sinusoid 2,-120 +channel -alpha opaque",

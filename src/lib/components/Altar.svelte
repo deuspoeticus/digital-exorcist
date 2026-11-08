@@ -263,7 +263,7 @@
             <button
                 class:active={isComparing}
                 on:mousedown={toggleCompare}
-                title="Hold to see the original">Compare</button
+                title="Toggle between the original and the result">Compare</button
             >
             <div class="separator"></div>
             <button on:click={fitView}>Fit</button>
